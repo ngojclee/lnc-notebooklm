@@ -448,3 +448,14 @@ async def test_push_credentials_endpoint(client, monkeypatch):
     # empty body → 400
     client.cookies.clear()
     assert (await client.post("/api/credentials", headers=H, json={})).status_code == 400
+
+
+def test_parse_cookies_formats():
+    from app.nblm import _parse_cookies
+
+    assert _parse_cookies("SID=a; HSID=b") == {"SID": "a", "HSID": "b"}
+    assert _parse_cookies("Cookie: SID=a; HSID=b") == {"SID": "a", "HSID": "b"}
+    j = '[{"name":"SID","value":"s"},{"name":"HSID","value":"h"},{"name":"bad"}]'
+    assert _parse_cookies(j) == {"SID": "s", "HSID": "h"}
+    assert _parse_cookies("[broken") == {}
+    assert _parse_cookies("") == {}

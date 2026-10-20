@@ -5,12 +5,17 @@ fastapi's threadpool. Never let upstream exceptions leak: convert to
 typed strings the route layer maps onto error codes.
 """
 
+import json
 import time
 from http.cookies import SimpleCookie
 
 
 def save_cookie_header(cookie_header: str, profile: str | None = None) -> dict:
-    """Parse a raw Cookie header, save via upstream auth, validate live.
+    """Parse cookies, save via upstream auth, validate live.
+
+    Accepts a raw ``Cookie:`` request header, the same header without the
+    ``Cookie:`` label, or a J2Team/Cookie-Bridge JSON export
+    ``[{name, value, …}]``.
 
     Returns {ok, saved, validated, detail, email?} — never raises.
     """
@@ -21,17 +26,7 @@ def save_cookie_header(cookie_header: str, profile: str | None = None) -> dict:
         validate_cookies,
     )
 
-    parsed = SimpleCookie()
-    try:
-        parsed.load(cookie_header or "")
-    except Exception:
-        parsed = SimpleCookie()
-    cookies = {k: m.value for k, m in parsed.items()}
-    if not cookies:
-        for part in (cookie_header or "").split(";"):
-            if "=" in part:
-                k, v = part.split("=", 1)
-                cookies[k.strip()] = v.strip()
+    cookies = _parse_cookies(cookie_header)
 
     required = ["SID", "HSID", "SSID", "APISID", "SAPISID"]
     missing = [c for c in required if c not in cookies]
@@ -50,6 +45,35 @@ def save_cookie_header(cookie_header: str, profile: str | None = None) -> dict:
         "detail": err,
         "warnings": problems,
     }
+
+
+def _parse_cookies(raw_input: str) -> dict:
+    """str → {name: value}. Handles raw header, `Cookie:` label, JSON array."""
+    raw = (raw_input or "").strip()
+    if raw.startswith("["):
+        try:
+            arr = json.loads(raw)
+            return {
+                c["name"]: str(c["value"])
+                for c in arr
+                if isinstance(c, dict) and c.get("name") and c.get("value") is not None
+            }
+        except Exception:
+            return {}
+    if raw.lower().startswith("cookie:"):
+        raw = raw.split(":", 1)[1].strip()
+    parsed = SimpleCookie()
+    try:
+        parsed.load(raw)
+    except Exception:
+        parsed = SimpleCookie()
+    cookies = {k: m.value for k, m in parsed.items()}
+    if not cookies:
+        for part in raw.split(";"):
+            if "=" in part:
+                k, v = part.split("=", 1)
+                cookies[k.strip()] = v.strip()
+    return cookies
 
 
 def auth_status() -> dict:

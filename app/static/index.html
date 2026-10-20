@@ -62,9 +62,11 @@
           <div class="card-body">
             <p class="hint">Paste the full <code>Cookie:</code> request header from a logged-in
             <code>notebooklm.google.com</code> browser session — DevTools → Network → any request →
-            Request Headers. The CSRF token and session ID are extracted automatically on the first call.</p>
-            <label class="field"><span class="field-label">Cookie header</span>
-              <textarea id="cookie-in" rows="5" spellcheck="false" placeholder="SID=…; HSID=…; SSID=…; APISID=…; SAPISID=…"></textarea></label>
+            Request Headers. The <strong>LNC Cookie Bridge</strong> JSON export is accepted too
+            (<code>Copy JSON</code> in the extension popup → paste here). The CSRF token and session
+            ID are extracted automatically on the first call.</p>
+            <label class="field"><span class="field-label">Cookie header or JSON export</span>
+              <textarea id="cookie-in" rows="5" spellcheck="false" placeholder="SID=…; HSID=…; SSID=…; APISID=…; SAPISID=…&#10;&#10;— or paste a [{name, value, …}] export from LNC Cookie Bridge"></textarea></label>
             <div class="toolbar">
               <button class="btn btn-primary" id="save-cookies">Save &amp; validate</button>
               <button class="btn" id="refresh-cookies">Rotate (http-only)</button>

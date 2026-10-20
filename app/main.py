@@ -229,6 +229,8 @@ async def push_credentials(request: Request):
     {"cookies": [{"name": …, "value": …}, …]} (J2Team export shape)."""
     auth.require_api_or_session(request)
     body = await request.json()
+    if isinstance(body, list):
+        body = {"cookies": body}  # bare J2Team array as the whole payload
     header = str(body.get("cookie_header", "")).strip()
     if not header:
         cookies = body.get("cookies") or []
