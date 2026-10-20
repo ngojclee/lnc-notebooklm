@@ -8,8 +8,8 @@ Internal lengoc.me app. Follow `lnc-internal-app-blueprint` (Shape 0) and
 - `app/` — FastAPI service. `main.py` routes+middleware, `auth.py`
   principals (Bearer api_key / HMAC session), `config.py` env+runtime JSON,
   `nblm.py` upstream `notebooklm_tools` wrappers (sync — threadpool only).
-- `app/static/` — ops UI (login.html, index.html, app.js, style.css).
-- `infra/docker-compose.yml` + `infra/stack.env.example` — Portainer stack.
+- `app/static/` — ops UI (login.html, index.html, app.js, style.css, favicon.*).
+- `stack.yml` — THE Portainer deploy unit (repo-build mode, `build: .`, no `image:`).
 - `tests/` — contract tests; NEVER call live Google (mock nblm layer).
 
 ## Hard rules

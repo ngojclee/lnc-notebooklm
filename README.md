@@ -42,5 +42,9 @@ $env:MANAGEMENT_KEY='dev'; $env:LNC_API_KEYS='dev-key'
 
 ## Deploy
 
-`release-portainer-app` flow: Gitea repo → Portainer stack from
-`infra/docker-compose.yml` + `stack.env` → NPM proxy host + internal DNS.
+`release-portainer-app` flow — repo-build mode: Portainer stack **Repository**
+→ URL `https://gitea.lengoc.me/apps/lnc-notebooklm`, compose path `stack.yml`,
+env `MANAGEMENT_KEY` + `LNC_API_KEYS` (+ optional `DATA_DIR`, `PORT`,
+`PUBLIC_BASE_URL`). Then NPM proxy host + internal DNS (`notebooklm.lengoc.me`).
+
+Env vars: see header comments in `stack.yml`.

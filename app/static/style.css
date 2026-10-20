@@ -24,7 +24,8 @@ textarea{resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:1
 /* shell */
 .topbar{display:flex;align-items:center;gap:16px;height:64px;padding:0 20px;border-bottom:1px solid var(--border);background:var(--panel)}
 .brand{font-weight:600;display:flex;align-items:center;gap:8px}
-.brand-mark{color:var(--accent)}
+.brand-img{width:28px;height:28px;border-radius:7px;overflow:hidden}
+.login-img{width:36px;height:36px;border-radius:9px}
 .ver{color:var(--dim);font-weight:400;font-size:12px}
 .topnav{display:flex;gap:4px;flex:1}
 .topnav a{color:var(--dim);padding:6px 10px;border-radius:var(--radius)}

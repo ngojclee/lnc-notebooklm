@@ -1,0 +1,50 @@
+# ============================================================
+# lnc-notebooklm — Portainer stack (Gemini Notebook / NotebookLM service)
+# ============================================================
+# Surfaces sau deploy:
+#   Web ops UI:  http://<host>:8472/admin   (login bằng MANAGEMENT_KEY)
+#   MCP:         http://<host>:8472/mcp     (Bearer key trong LNC_API_KEYS)
+#   Domain nội bộ (tuỳ chọn): notebooklm.lengoc.me qua
+#   automations/internal-dns + NPM proxy host -> http://<host>:8472
+# ------------------------------------------------------------
+# GOOGLE LOGIN — không cần OAuth/service account:
+#   1. Mở notebooklm.google.com trong browser, đăng nhập account dành cho
+#      service (nên là account RIÊNG, không phải account chính).
+#   2. F12 -> Network -> click request tới notebooklm.google.com ->
+#      Request Headers -> copy nguyên `cookie:` header.
+#   3. Vào /admin -> Credentials -> paste -> "save + validate".
+#   Cookie sống ~tuần; hết hạn lặp lại hoặc bấm "rotate cookies".
+# ------------------------------------------------------------
+# ENV khi deploy (Portainer -> Environment variables):
+#   DATA_DIR      — thư mục GỐC trên host (vd /home/Docker ->
+#                   bind /home/Docker/lnc-notebooklm). Google session +
+#                   config + inbox files nằm đây.
+#   MANAGEMENT_KEY — mật khẩu đăng nhập /admin. Bắt buộc ở prod.
+#   LNC_API_KEYS  — danh sách Bearer key cho /mcp + /api/files,
+#                   comma-separated, 1 key/consumer (per-agent).
+#   MAX_UPLOAD_MB — giới hạn upload /api/files (mặc định 200).
+#   PUBLIC_BASE_URL — vd http://notebooklm.lengoc.me (download_url).
+# ============================================================
+
+services:
+  lnc-notebooklm:
+    build: .                      # Portainer build từ git repo (KHÔNG đặt image:)
+    container_name: lnc-notebooklm
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8472}:8000"
+    environment:
+      - DATA_DIR=/data                       # trong container — KHÔNG đổi
+      - PORT=8000
+      - NOTEBOOKLM_MCP_CLI_PATH=/data/nlm    # upstream storage trong volume
+      - NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1  # không có browser trong image;
+        # rotate/re-auth qua /admin cookie drop
+      - MANAGEMENT_KEY=${MANAGEMENT_KEY:-}   # PHẢI có — env Portainer mới vào được
+      - LNC_API_KEYS=${LNC_API_KEYS:-}
+      - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-200}
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}
+      - NOTEBOOKLM_RPC_OVERRIDES=${NOTEBOOKLM_RPC_OVERRIDES:-}  # hot-patch khi Google xoay RPC id
+      - TZ=${TZ:-Europe/Paris}
+    volumes:
+      - ${DATA_DIR:-/home/Docker}/lnc-notebooklm:/data
+      # /data/{nlm/ (cookies+profiles), config.json, inbox/}
