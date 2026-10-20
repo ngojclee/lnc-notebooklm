@@ -424,26 +424,28 @@ async def test_push_credentials_endpoint(client, monkeypatch):
     calls = []
     monkeypatch.setattr(
         "app.main.nblm.save_cookie_header",
-        lambda h: (calls.append(h) or {"ok": True, "saved": True}),
+        lambda h, p=None, a=None, b=None: (calls.append((h, a)) or {"ok": True, "saved": True}),
     )
 
     # bearer + raw header
     r = await client.post("/api/credentials", headers=H,
                           json={"cookie_header": "SID=x; HSID=y"})
     assert r.status_code == 200 and r.json()["ok"]
-    assert calls[-1] == "SID=x; HSID=y"
+    assert calls[-1] == ("SID=x; HSID=y", None)
 
-    # J2Team cookies array → header rebuilt
-    r = await client.post("/api/credentials", headers=H, json={"cookies": [
-        {"name": "SID", "value": "s"}, {"name": "HSID", "value": "h"},
+    # J2Team cookies array → list kept (domains preserved), junk dropped, authuser forwarded
+    r = await client.post("/api/credentials", headers=H, json={"authuser": 1, "cookies": [
+        {"name": "SID", "value": "s", "domain": ".google.com"}, {"name": "HSID", "value": "h"},
         {"name": "bad"}, "junk",
     ]})
-    assert calls[-1] == "SID=s; HSID=h"
+    assert calls[-1] == ([{"name": "SID", "value": "s", "domain": ".google.com"},
+                          {"name": "HSID", "value": "h"}], 1)
+    calls[-1] = (calls[-1][0], None)
 
     # session also works
     await client.post("/api/auth/login", json={"key": "test-mgmt-key"})
     r = await client.post("/api/credentials", json={"cookie_header": "SID=z"})
-    assert r.status_code == 200 and calls[-1] == "SID=z"
+    assert r.status_code == 200 and calls[-1] == ("SID=z", None)
 
     # empty body → 400
     client.cookies.clear()
@@ -459,3 +461,45 @@ def test_parse_cookies_formats():
     assert _parse_cookies(j) == {"SID": "s", "HSID": "h"}
     assert _parse_cookies("[broken") == {}
     assert _parse_cookies("") == {}
+
+
+def test_scope_cookies_picks_host_osid():
+    """Per-subdomain OSIDs must not collide — notebook gets ITS OSID only."""
+    from app.nblm import _detect_host, _parse_cookie_items, scope_cookies
+
+    items = _parse_cookie_items([
+        {"name": "SID", "value": "sid", "domain": ".google.com"},
+        {"name": "OSID", "value": "mail", "domain": "mail.google.com", "hostOnly": True},
+        {"name": "OSID", "value": "nb", "domain": "notebook.google.com", "hostOnly": True},
+        {"name": "_ga", "value": "x", "domain": ".notebook.google.com"},
+        {"name": "NID", "value": "yt", "domain": ".youtube.com"},
+    ])
+    host = _detect_host(items)
+    assert host == "notebook.google.com"
+    assert scope_cookies(items, host) == {"SID": "sid", "OSID": "nb", "_ga": "x"}
+    # raw header items carry no domain → all kept
+    assert scope_cookies(_parse_cookie_items("SID=a; OSID=b"), host) == {"SID": "a", "OSID": "b"}
+
+
+def test_authuser_rewrites_notebook_requests_only():
+    import httpx
+
+    from app import authuser
+
+    authuser.install()
+    seen = []
+    tr = httpx.MockTransport(lambda req: (seen.append(req), httpx.Response(200))[1])
+    try:
+        authuser.set_authuser(1)
+        with httpx.Client(transport=tr) as c:
+            c.get("https://notebook.google.com/upload/_/?authuser=0")
+            c.get("https://example.com/")
+        assert seen[0].url.params["authuser"] == "1"
+        assert seen[0].headers["x-goog-authuser"] == "1"
+        assert "authuser" not in seen[1].url.params
+        authuser.set_authuser(0)
+        with httpx.Client(transport=tr) as c:
+            c.get("https://notebook.google.com/")
+        assert "authuser" not in seen[2].url.params
+    finally:
+        authuser.set_authuser(0)

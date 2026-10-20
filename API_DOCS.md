@@ -23,7 +23,7 @@ Base: `http://<host>:<port>` · All responses JSON `{ok:bool,...}` or `{"ok":fal
 | POST | `/api/files` | multipart `file` → `{ok,name,path,size}` — `path` feeds `source_add` |
 | GET | `/api/files` | `{files:[{name,path,size,mtime}]}` |
 | DELETE | `/api/files/{name}` | basename only; 404 otherwise |
-| POST | `/api/credentials` | `{cookie_header:"a=b; c=d"}` or J2Team `{cookies:[{name,value}…]}` → save + validate — the LNC-Cookie-Bridge push target |
+| POST | `/api/credentials` | `{cookie_header:"a=b; c=d"}` or J2Team `{cookies:[{name,value,domain?,hostOnly?}…]}`, optional `authuser` (Google multi-signin index) and `base_host` → scope to the NotebookLM host (per-subdomain `OSID` kept apart), save + validate → `{ok,validated,detail,base_host,authuser,account,cookie_count}` — the LNC-Cookie-Bridge push target |
 
 ## Session-only (`/api/admin/*`)
 
@@ -31,7 +31,8 @@ Base: `http://<host>:<port>` · All responses JSON `{ok:bool,...}` or `{"ok":fal
 |---|---|---|
 | GET | `/api/admin/auth` | upstream auth state, cookie age, profiles |
 | POST | `/api/admin/validate` | live `confirm_auth_via_api` → `{ok,detail}` |
-| POST | `/api/admin/credentials` | `{cookies:"SID=…; …"}` → save + validate → `{ok,saved,validated,detail}` |
+| POST | `/api/admin/credentials` | `{cookies:"SID=…; …" or JSON export, authuser?}` → save + validate → same shape as `/api/credentials` |
+| POST | `/api/admin/authuser` | `{authuser:N}` → switch Google account index without re-pushing cookies |
 | POST | `/api/admin/refresh` | HTTP-only cookie rotation |
 | GET | `/api/admin/usage` | plan usage windows (upstream passthrough) |
 | GET | `/api/settings` | masked config + env summary |

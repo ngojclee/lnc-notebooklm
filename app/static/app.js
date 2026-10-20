@@ -66,6 +66,7 @@ async function loadStatus(){
   if(!j.ok){el.innerHTML='<div class="empty">Unavailable: '+esc(j.error||'error')+'</div>';return}
   const n=j.nblm||{};
   const authOk=!!n.authenticated;
+  if($('#authuser-in')&&document.activeElement!==$('#authuser-in'))$('#authuser-in').value=n.authuser??0;
   $('#ver').textContent='v'+j.version;
   $('#health').className='pill '+(j.ok?'ok':'bad');
   $('#health').innerHTML='<span class="dot"></span>'+(j.ok?'online':'down');
@@ -75,7 +76,7 @@ async function loadStatus(){
       <div class="stat"><div class="l">Auth state</div><div class="n">${authOk?badge('ready','b-ok'):badge('needs cookies','b-warn')}</div></div>
       <div class="stat"><div class="l">Cookie age</div><div class="n">${n.cookie_age_days!=null?n.cookie_age_days+' d':'—'}</div></div>
       <div class="stat"><div class="l">Inbox files</div><div class="n">${j.inbox_files??0}</div></div>
-      <div class="stat"><div class="l">Profiles</div><div class="n" style="font-size:13px;font-weight:500">${esc((n.profiles||[]).join(', ')||'—')}</div></div>
+      <div class="stat"><div class="l">Google account</div><div class="n" style="font-size:13px;font-weight:500">${esc(n.account||'—')} <span class="muted">· authuser ${n.authuser??0}${n.base_host?' · '+esc(n.base_host):''}</span></div></div>
     </div>
     <dl class="kv">
       <dt>Service</dt><dd>${esc(j.service)} ${esc(j.version)}</dd>
@@ -197,9 +198,10 @@ $('#keys-body').onclick=async ev=>{
 /* ---------- credentials / settings actions ---------- */
 $('#save-cookies').onclick=async()=>{
   const el=$('#cred-result');el.hidden=false;el.className='alert alert-info';el.textContent='Saving…';
-  const j=await api('/api/admin/credentials',{method:'POST',body:JSON.stringify({cookies:$('#cookie-in').value})});
-  if(j.ok){el.className='alert alert-success';el.textContent='Cookies saved and validated.';$('#cookie-in').value=''}
-  else{el.className='alert alert-danger';el.textContent='Failed: '+(j.detail||j.error||'unknown error')}
+  const j=await api('/api/admin/credentials',{method:'POST',body:JSON.stringify({cookies:$('#cookie-in').value,authuser:Number($('#authuser-in').value||0)})});
+  const who=j.account?` — ${j.account} (authuser ${j.authuser}, ${j.base_host})`:'';
+  if(j.ok){el.className='alert alert-success';el.textContent='Cookies saved and validated'+who;$('#cookie-in').value=''}
+  else{el.className='alert alert-danger';el.textContent='Failed: '+(j.detail||j.error||'unknown error')+(j.missing?' — missing '+j.missing.join(', '):'')+(j.hint?' — '+j.hint:'')+who}
   loadStatus();
 };
 $('#refresh-cookies').onclick=async()=>{

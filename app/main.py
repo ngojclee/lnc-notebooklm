@@ -20,7 +20,10 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.staticfiles import StaticFiles
 
-from . import __version__, auth, config, connector, nblm
+from . import __version__, auth, authuser, config, connector, nblm
+
+authuser.install()
+authuser.set_authuser(config.load_config().get("authuser", 0))
 
 STATIC_DIR = Path(__file__).parent / "static"
 MAX_UPLOAD_MB = int(__import__("os").environ.get("MAX_UPLOAD_MB", "200"))
@@ -226,23 +229,23 @@ async def delete_file(request: Request, name: str):
 async def push_credentials(request: Request):
     """Cookie push for the LNC-Cookie-Bridge extension (bearer) and the
     admin UI (session). Accepts {"cookie_header": "a=b; c=d"} or
-    {"cookies": [{"name": …, "value": …}, …]} (J2Team export shape)."""
+    {"cookies": [{"name", "value", "domain"?, "hostOnly"?}, …]} (J2Team
+    export shape — domains are kept so per-host OSIDs don't collide).
+    Optional "authuser" (Google multi-signin index) and "base_host"."""
     auth.require_api_or_session(request)
     body = await request.json()
     if isinstance(body, list):
         body = {"cookies": body}  # bare J2Team array as the whole payload
-    header = str(body.get("cookie_header", "")).strip()
-    if not header:
+    payload = str(body.get("cookie_header", "")).strip()
+    if not payload:
         cookies = body.get("cookies") or []
         if isinstance(cookies, list):
-            header = "; ".join(
-                f"{c.get('name')}={c.get('value')}"
-                for c in cookies
-                if isinstance(c, dict) and c.get("name") and c.get("value") is not None
-            )
-    if not header:
+            payload = [c for c in cookies
+                       if isinstance(c, dict) and c.get("name") and c.get("value") is not None]
+    if not payload:
         raise HTTPException(400, "cookies_required")
-    return await run_in_threadpool(nblm.save_cookie_header, header)
+    return await run_in_threadpool(
+        nblm.save_cookie_header, payload, None, body.get("authuser"), body.get("base_host"))
 
 
 # ------------------------------------------------------------- admin (session)
@@ -265,7 +268,13 @@ async def admin_credentials(request: Request):
     cookies = str(body.get("cookies", "")).strip()
     if not cookies:
         raise HTTPException(400, "cookies_required")
-    return await run_in_threadpool(nblm.save_cookie_header, cookies)
+    return await run_in_threadpool(nblm.save_cookie_header, cookies, None, body.get("authuser"))
+
+
+@app.post("/api/admin/authuser")
+async def admin_authuser(request: Request):
+    body = await request.json()
+    return await run_in_threadpool(nblm.set_authuser, body.get("authuser", 0))
 
 
 @app.post("/api/admin/refresh")

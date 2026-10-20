@@ -67,6 +67,8 @@
             ID are extracted automatically on the first call.</p>
             <label class="field"><span class="field-label">Cookie header or JSON export</span>
               <textarea id="cookie-in" rows="5" spellcheck="false" placeholder="SID=…; HSID=…; SSID=…; APISID=…; SAPISID=…&#10;&#10;— or paste a [{name, value, …}] export from LNC Cookie Bridge"></textarea></label>
+            <label class="field"><span class="field-label">Google account index (authuser) — the N in notebook.google.com/?authuser=N</span>
+              <input id="authuser-in" type="number" min="0" max="9" value="0" style="max-width:120px"></label>
             <div class="toolbar">
               <button class="btn btn-primary" id="save-cookies">Save &amp; validate</button>
               <button class="btn" id="refresh-cookies">Rotate (http-only)</button>
