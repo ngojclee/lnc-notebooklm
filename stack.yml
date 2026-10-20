@@ -27,6 +27,8 @@
 #                   GA_ALLOWED_HOSTS). Vd:
 #                   notebooklm.lengoc.me,lnc-notebooklm,10.21.4.101
 #                   Để trống/"*" = chấp nhận mọi Host (IP + domain đều vào).
+#                   localhost/127.0.0.1/container-name luôn được thêm tự động
+#                   (healthcheck container không bao giờ bị chặn).
 #   PUBLIC_BASE_URL — tuỳ chọn. Để TRỐNG: app tự sinh URL theo Host của
 #                   request (vào bằng IP ra link IP, vào bằng domain ra
 #                   link domain; https khi qua NPM). Chỉ set nếu muốn ép

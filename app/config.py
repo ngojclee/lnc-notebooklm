@@ -36,11 +36,18 @@ def allowed_hosts() -> list[str]:
 
     Mirrors GA_ALLOWED_HOSTS pattern: list every name/IP clients may use,
     e.g. "notebooklm.lengoc.me,lnc-notebooklm,10.21.4.101".
+    localhost + container hostname are always appended — docker healthcheck
+    and in-container calls must keep working regardless of the list.
     """
     raw = os.environ.get("ALLOWED_HOSTS", "").strip()
     if not raw or raw == "*":
         return ["*"]
-    return [h.strip() for h in raw.split(",") if h.strip()]
+    hosts = [h.strip() for h in raw.split(",") if h.strip()]
+    for local in ("localhost", "127.0.0.1", "::1", os.uname().nodename
+                  if hasattr(os, "uname") else ""):
+        if local and local not in hosts:
+            hosts.append(local)
+    return hosts
 
 
 def public_base(request) -> str:

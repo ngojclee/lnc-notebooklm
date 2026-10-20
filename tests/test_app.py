@@ -288,6 +288,17 @@ async def test_ui_settings_connector_fallback(client, monkeypatch):
     assert r.json()["settings"]["env"]["CONNECTOR_BEARER"] == "unset"
 
 
+async def test_allowed_hosts_includes_localhost(monkeypatch):
+    """ALLOWED_HOSTS list always keeps localhost — docker HEALTHCHECK uses 127.0.0.1."""
+    monkeypatch.setenv("ALLOWED_HOSTS", "notebooklm.lengoc.me,10.21.4.101")
+    hosts = config.allowed_hosts()
+    assert "notebooklm.lengoc.me" in hosts
+    for local in ("localhost", "127.0.0.1"):
+        assert local in hosts
+    monkeypatch.setenv("ALLOWED_HOSTS", "")
+    assert config.allowed_hosts() == ["*"]
+
+
 async def test_ui_settings_public_base_override(client):
     r = await client.post("/api/auth/login", json={"key": "test-mgmt-key"})
     assert r.status_code == 200
