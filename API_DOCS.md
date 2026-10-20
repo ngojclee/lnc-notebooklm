@@ -19,10 +19,11 @@ Base: `http://<host>:<port>` · All responses JSON `{ok:bool,...}` or `{"ok":fal
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/status` | `{ok, service, version, nblm:{state,cookie_age_days,profiles}, inbox_files, mcp_endpoint}` |
+| GET | `/api/status` | `{ok, service, version, nblm:{authenticated,cookie_age_days,profiles}, inbox_files, mcp_endpoint}` |
 | POST | `/api/files` | multipart `file` → `{ok,name,path,size}` — `path` feeds `source_add` |
 | GET | `/api/files` | `{files:[{name,path,size,mtime}]}` |
 | DELETE | `/api/files/{name}` | basename only; 404 otherwise |
+| POST | `/api/credentials` | `{cookie_header:"a=b; c=d"}` or J2Team `{cookies:[{name,value}…]}` → save + validate — the LNC-Cookie-Bridge push target |
 
 ## Session-only (`/api/admin/*`)
 
