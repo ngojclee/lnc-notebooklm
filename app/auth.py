@@ -86,7 +86,9 @@ def session_valid(request: Request) -> bool:
 
 
 def bearer_valid(request: Request) -> bool:
-    """env LNC_API_KEYS ∪ UI-managed keys (enabled, hash-matched)."""
+    """UI key records win on a hash match — an adopted env key is governed by
+    its record (disable/revoke kills it even while still in env). Otherwise
+    fall back to plain env LNC_API_KEYS."""
     auth = request.headers.get("authorization", "")
     if not auth.lower().startswith("bearer "):
         return False
@@ -94,13 +96,12 @@ def bearer_valid(request: Request) -> bool:
     if not token:
         return False
     token_hash = _sha(token)
-    if any(hmac.compare_digest(token_hash, _sha(k)) for k in config._api_keys()):
-        return True
-    return any(
-        r.get("enabled", True)
-        and hmac.compare_digest(token_hash, str(r.get("sha256", "")))
-        for r in config.cfg_key_records()
-    )
+    if token_hash in config.revoked_env_hashes():
+        return False
+    for r in config.cfg_key_records():
+        if hmac.compare_digest(token_hash, str(r.get("sha256", ""))):
+            return bool(r.get("enabled", True))
+    return any(hmac.compare_digest(token_hash, _sha(k)) for k in config._api_keys())
 
 
 def require_session(request: Request) -> None:

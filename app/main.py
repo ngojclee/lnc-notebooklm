@@ -296,10 +296,19 @@ async def set_settings(request: Request):
 @app.get("/api/admin/keys")
 async def list_keys():
     keys = [
-        {k: r[k] for k in ("id", "label", "prefix", "enabled", "created") if k in r}
+        {k: r[k] for k in ("id", "label", "prefix", "enabled", "created", "source") if k in r}
         for r in config.cfg_key_records()
     ]
-    return {"ok": True, "keys": keys, "env_keys": len(config._api_keys())}
+    env = [{"prefix": e["prefix"], "adopted": e["adopted"], "revoked": e["revoked"]}
+           for e in config.env_key_entries()]
+    return {"ok": True, "keys": keys, "env": env}
+
+
+@app.post("/api/admin/keys/adopt")
+async def adopt_keys():
+    """Move env LNC_API_KEYS under UI management (same hash, record governs)."""
+    recs = config.adopt_env_keys()
+    return {"ok": True, "adopted": len(recs)}
 
 
 @app.post("/api/admin/keys")

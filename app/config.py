@@ -140,13 +140,55 @@ def update_api_key(key_id: str, **fields) -> dict | None:
     return None
 
 
+def revoked_env_hashes() -> set[str]:
+    """sha256 of env keys revoked after adoption — denies the token even while
+    it remains present in LNC_API_KEYS."""
+    vals = load_config().get("revoked_env_keys")
+    return {str(v) for v in vals} if isinstance(vals, list) else set()
+
+
 def delete_api_key(key_id: str) -> bool:
     keys = cfg_key_records()
-    keep = [r for r in keys if r.get("id") != key_id]
-    if len(keep) == len(keys):
+    rec = next((r for r in keys if r.get("id") == key_id), None)
+    if rec is None:
         return False
-    _write_key_records(keep)
+    if rec.get("source") == "env" and rec.get("sha256"):
+        cfg = load_config()
+        cfg["revoked_env_keys"] = sorted(revoked_env_hashes() | {rec["sha256"]})
+        save_config(cfg)
+    _write_key_records([r for r in keys if r.get("id") != key_id])
     return True
+
+
+def env_key_entries() -> list[dict]:
+    """Each LNC_API_KEYS entry → {prefix, adopted, revoked} for the keys table."""
+    adopted = {r.get("sha256") for r in cfg_key_records()}
+    revoked = revoked_env_hashes()
+    out = []
+    for k in sorted(_api_keys()):
+        h = hashlib.sha256(k.encode()).hexdigest()
+        out.append({"prefix": k[:14], "adopted": h in adopted, "revoked": h in revoked})
+    return out
+
+
+def adopt_env_keys(label: str = "env import") -> list[dict]:
+    """Import unadopted env keys as UI records (same hash). From then on the
+    record governs — disabling/revoking kills the key even while it remains
+    in env, so LNC_API_KEYS can be emptied at the next deploy."""
+    keys, existing = cfg_key_records(), {r.get("sha256") for r in cfg_key_records()}
+    recs = []
+    for i, k in enumerate(sorted(_api_keys()), 1):
+        h = hashlib.sha256(k.encode()).hexdigest()
+        if h in existing:
+            continue
+        rec = {"id": secrets.token_hex(4), "label": f"{label} {i}",
+               "prefix": k[:14], "sha256": h, "source": "env",
+               "enabled": True, "created": int(time.time())}
+        keys.append(rec)
+        recs.append(rec)
+    if recs:
+        _write_key_records(keys)
+    return recs
 
 
 @dataclass

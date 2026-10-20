@@ -358,3 +358,43 @@ async def test_rpc_overrides_roundtrip(client, monkeypatch):
     assert "abc123" in os.environ["NOTEBOOKLM_RPC_OVERRIDES"]
     await client.post("/api/admin/rpc-overrides", json={"overrides": None}, cookies=cookies)
     assert "NOTEBOOKLM_RPC_OVERRIDES" not in os.environ
+
+
+async def test_env_key_adoption(client):
+    """Adopt an env key → record governs: disable kills it despite env,
+    revoke keeps it dead via the revoked-env denylist."""
+    env_key = "test-api-key"  # from LNC_API_KEYS in conftest env
+    H = {"authorization": f"Bearer {env_key}"}
+    client.cookies.clear()
+    assert (await client.get("/api/status", headers=H)).status_code == 200
+
+    await client.post("/api/auth/login", json={"key": "test-mgmt-key"})
+    r = await client.get("/api/admin/keys")
+    entry = next(e for e in r.json()["env"] if e["prefix"] == env_key[:14])
+    assert entry == {"prefix": env_key[:14], "adopted": False, "revoked": False}
+
+    r = await client.post("/api/admin/keys/adopt")
+    assert r.json()["adopted"] >= 1
+    rec = next(k for k in (await client.get("/api/admin/keys")).json()["keys"]
+               if k["prefix"] == env_key[:14])
+    assert rec["source"] == "env" and rec["enabled"]
+
+    # still works while enabled — record now governs
+    client.cookies.clear()
+    assert (await client.get("/api/status", headers=H)).status_code == 200
+
+    # disable → dead even though env still holds the key
+    await client.post("/api/auth/login", json={"key": "test-mgmt-key"})
+    await client.post(f"/api/admin/keys/{rec['id']}/toggle")
+    client.cookies.clear()
+    assert (await client.get("/api/status", headers=H)).status_code == 401
+
+    # revoke → stays dead (denylist), env entry reports revoked
+    await client.post("/api/auth/login", json={"key": "test-mgmt-key"})
+    await client.delete(f"/api/admin/keys/{rec['id']}")
+    client.cookies.clear()
+    assert (await client.get("/api/status", headers=H)).status_code == 401
+    await client.post("/api/auth/login", json={"key": "test-mgmt-key"})
+    entry = next(e for e in (await client.get("/api/admin/keys")).json()["env"]
+               if e["prefix"] == env_key[:14])
+    assert entry["revoked"] is True

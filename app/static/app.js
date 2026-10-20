@@ -78,31 +78,46 @@ $('#save-settings').onclick=async()=>{
   const cb=$('#set-conn-bearer').value.trim();if(cb)body.connector_bearer=cb;
   const ds=$('#set-del-secret').value.trim();if(ds)body.delegation_secret=ds;
   const j=await api('/api/admin/settings',{method:'POST',body:JSON.stringify(body)});
-  if(j.ok){$('#set-conn-bearer').value='';$('#set-del-secret').value='';alert('saved');loadSettings()}
-  else alert('failed: '+j.error);
+  if(j.ok){$('#set-conn-bearer').value='';$('#set-del-secret').value='';alert('Settings saved.');loadSettings()}
+  else alert('Save failed: '+j.error);
 };
 $('#save-overrides').onclick=async()=>{
   let v=null;const raw=$('#rpc-overrides').value.trim();
-  if(raw){try{v=JSON.parse(raw)}catch{alert('invalid JSON');return}}
+  if(raw){try{v=JSON.parse(raw)}catch{alert('Invalid JSON.');return}}
   const j=await api('/api/admin/rpc-overrides',{method:'POST',body:JSON.stringify({overrides:v})});
-  alert(j.ok?'saved':'failed: '+j.error);loadSettings();
+  alert(j.ok?'Overrides saved.':'Save failed: '+j.error);loadSettings();
 };
 async function loadKeys(){
   const j=await api('/api/admin/keys');
   const tb=$('#keys-body');
-  if(!j.ok){tb.innerHTML='<tr><td colspan="5" class="empty">failed: '+j.error+'</td></tr>';return}
+  if(!j.ok){tb.innerHTML='<tr><td colspan="6" class="empty">failed: '+j.error+'</td></tr>';return}
   const rows=j.keys.map(r=>`<tr><td>${r.label||''}</td><td><code>${r.prefix}…</code></td>
+    <td>${r.source==='env'?'env':'ui'}</td>
     <td>${r.enabled?'enabled':'disabled'}</td><td>${new Date((r.created||0)*1000).toLocaleDateString()}</td>
     <td><button class="btn btn-sm" data-tgl="${r.id}">${r.enabled?'disable':'enable'}</button>
     <button class="btn btn-sm btn-danger" data-del="${r.id}">revoke</button></td></tr>`);
-  rows.push(`<tr><td colspan="5" class="empty">${j.keys.length?'':'no ui keys yet — '}${j.env_keys} env key(s) from LNC_API_KEYS</td></tr>`);
+  let pending=0;
+  for(const e of j.env||[]){
+    if(e.adopted)continue;
+    if(e.revoked){rows.push(`<tr><td>—</td><td><code>${e.prefix}…</code></td>
+      <td>env</td><td class="dim">revoked</td><td>—</td><td></td></tr>`)}
+    else{pending++;rows.push(`<tr><td>—</td><td><code>${e.prefix}…</code></td>
+      <td>env</td><td class="dim">unmanaged — valid</td><td>—</td><td></td></tr>`)}
+  }
+  if(!rows.length)rows.push('<tr><td colspan="6" class="empty">no keys — create one above or set LNC_API_KEYS</td></tr>');
   tb.innerHTML=rows.join('');
+  $('#adopt-env').hidden=!pending;
 }
+$('#adopt-env').onclick=async()=>{
+  const j=await api('/api/admin/keys/adopt',{method:'POST',body:'{}'});
+  if(j.ok)$('#key-result').hidden=true;
+  loadKeys();
+};
 $('#create-key').onclick=async()=>{
   const j=await api('/api/admin/keys',{method:'POST',body:JSON.stringify({label:$('#key-label').value})});
   const el=$('#key-result');el.hidden=false;
   if(j.ok){el.className='alert alert-success';
-    el.innerHTML='key (shown once — copy now):<br><code style="user-select:all">'+j.key+'</code>';
+    el.innerHTML='key — shown once, copy it now:<br><code style="user-select:all">'+j.key+'</code>';
     $('#key-label').value=''}
   else{el.className='alert alert-danger';el.textContent='failed: '+j.error}
   loadKeys();
@@ -110,13 +125,13 @@ $('#create-key').onclick=async()=>{
 $('#keys-body').onclick=async ev=>{
   const t=ev.target.dataset?.tgl,d=ev.target.dataset?.del;
   if(t)await api('/api/admin/keys/'+t+'/toggle',{method:'POST'});
-  if(d&&confirm('revoke this key?'))await api('/api/admin/keys/'+d,{method:'DELETE'});
+  if(d&&confirm('Revoke this key? Agents using it lose access immediately.'))await api('/api/admin/keys/'+d,{method:'DELETE'});
   loadKeys();
 };
 $('#refresh-keys').onclick=loadKeys;
 $('#mint-key').onclick=async()=>{
   const j=await api('/api/admin/mint-key',{method:'POST',body:'{}'});
-  alert('key: '+j.key+'\n\n'+j.note);
+  alert('New API key — shown once, copy it now:\n\n'+j.key);
 };
 $('#signout').onclick=()=>api('/api/auth/logout',{method:'POST'}).then(()=>location='/login.html');
 $('#refresh-status').onclick=loadStatus;

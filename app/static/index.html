@@ -75,15 +75,19 @@
         <button class="btn btn-sm" id="refresh-keys">refresh</button></div>
       <div class="card-body">
         <p class="hint">Bearer keys for <code>/mcp</code> + <code>/api/files</code>.
-        Stored as hashes — full secret is shown once at creation. Keys from
-        <code>LNC_API_KEYS</code> env also stay valid (count shown below).</p>
+        Keys are stored as hashes — the full secret is shown once at creation.
+        Keys from the <code>LNC_API_KEYS</code> env var stay valid while
+        <em>unmanaged</em>; <b>adopt</b> brings an env key under this table so its
+        status here decides — disabling or revoking it works even while the value
+        remains in env (empty the env var at the next deploy).</p>
         <div class="toolbar">
           <input id="key-label" type="text" placeholder="label (e.g. codex)" style="max-width:260px">
           <button class="btn btn-primary" id="create-key">create key</button>
+          <button class="btn" id="adopt-env" hidden>adopt env keys</button>
         </div>
         <div class="alert" id="key-result" hidden></div>
         <table class="data-table"><thead>
-          <tr><th>label</th><th>prefix</th><th>status</th><th>created</th><th></th></tr>
+          <tr><th>label</th><th>prefix</th><th>source</th><th>status</th><th>created</th><th></th></tr>
         </thead><tbody id="keys-body"></tbody></table>
       </div>
     </div>
