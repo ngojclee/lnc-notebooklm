@@ -300,6 +300,38 @@ async def test_ui_settings_public_base_override(client):
     assert r.json()["base_url"] == "http://t"
 
 
+async def test_ui_key_lifecycle(client):
+    """create → works → disable → 401 → re-enable → works → revoke → 401."""
+    await client.post("/api/auth/login", json={"key": "test-mgmt-key"})
+    r = await client.post("/api/admin/keys", json={"label": "codex"})
+    assert r.status_code == 200
+    key, kid = r.json()["key"], r.json()["item"]["id"]
+    assert key.startswith("nblm_")
+
+    client.cookies.clear()  # session would mask revoked-key checks
+    H = {"authorization": f"Bearer {key}"}
+    assert (await client.get("/api/status", headers=H)).status_code == 200
+
+    await client.post("/api/auth/login", json={"key": "test-mgmt-key"})
+    await client.post(f"/api/admin/keys/{kid}/toggle")
+    client.cookies.clear()
+    assert (await client.get("/api/status", headers=H)).status_code == 401
+    await client.post("/api/auth/login", json={"key": "test-mgmt-key"})
+    await client.post(f"/api/admin/keys/{kid}/toggle")
+    client.cookies.clear()
+    assert (await client.get("/api/status", headers=H)).status_code == 200
+
+    # plaintext never readable back
+    await client.post("/api/auth/login", json={"key": "test-mgmt-key"})
+    r = await client.get("/api/admin/keys")
+    rec = next(k for k in r.json()["keys"] if k["id"] == kid)
+    assert key not in r.text and rec["prefix"] == key[:14]
+
+    await client.delete(f"/api/admin/keys/{kid}")
+    client.cookies.clear()
+    assert (await client.get("/api/status", headers=H)).status_code == 401
+
+
 async def test_rpc_overrides_roundtrip(client, monkeypatch):
     monkeypatch.setenv("NOTEBOOKLM_RPC_OVERRIDES", "")
     async def login(c):

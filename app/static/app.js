@@ -87,6 +87,33 @@ $('#save-overrides').onclick=async()=>{
   const j=await api('/api/admin/rpc-overrides',{method:'POST',body:JSON.stringify({overrides:v})});
   alert(j.ok?'saved':'failed: '+j.error);loadSettings();
 };
+async function loadKeys(){
+  const j=await api('/api/admin/keys');
+  const tb=$('#keys-body');
+  if(!j.ok){tb.innerHTML='<tr><td colspan="5" class="empty">failed: '+j.error+'</td></tr>';return}
+  const rows=j.keys.map(r=>`<tr><td>${r.label||''}</td><td><code>${r.prefix}…</code></td>
+    <td>${r.enabled?'enabled':'disabled'}</td><td>${new Date((r.created||0)*1000).toLocaleDateString()}</td>
+    <td><button class="btn btn-sm" data-tgl="${r.id}">${r.enabled?'disable':'enable'}</button>
+    <button class="btn btn-sm btn-danger" data-del="${r.id}">revoke</button></td></tr>`);
+  rows.push(`<tr><td colspan="5" class="empty">${j.keys.length?'':'no ui keys yet — '}${j.env_keys} env key(s) from LNC_API_KEYS</td></tr>`);
+  tb.innerHTML=rows.join('');
+}
+$('#create-key').onclick=async()=>{
+  const j=await api('/api/admin/keys',{method:'POST',body:JSON.stringify({label:$('#key-label').value})});
+  const el=$('#key-result');el.hidden=false;
+  if(j.ok){el.className='alert alert-success';
+    el.innerHTML='key (shown once — copy now):<br><code style="user-select:all">'+j.key+'</code>';
+    $('#key-label').value=''}
+  else{el.className='alert alert-danger';el.textContent='failed: '+j.error}
+  loadKeys();
+};
+$('#keys-body').onclick=async ev=>{
+  const t=ev.target.dataset?.tgl,d=ev.target.dataset?.del;
+  if(t)await api('/api/admin/keys/'+t+'/toggle',{method:'POST'});
+  if(d&&confirm('revoke this key?'))await api('/api/admin/keys/'+d,{method:'DELETE'});
+  loadKeys();
+};
+$('#refresh-keys').onclick=loadKeys;
 $('#mint-key').onclick=async()=>{
   const j=await api('/api/admin/mint-key',{method:'POST',body:'{}'});
   alert('key: '+j.key+'\n\n'+j.note);
@@ -96,4 +123,4 @@ $('#refresh-status').onclick=loadStatus;
 $('#refresh-usage').onclick=loadUsage;
 $('#refresh-files').onclick=loadFiles;
 
-nav();loadStatus();loadUsage();loadSettings();loadFiles();
+nav();loadStatus();loadUsage();loadSettings();loadFiles();loadKeys();

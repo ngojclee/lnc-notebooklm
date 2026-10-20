@@ -15,7 +15,8 @@ from collections import defaultdict
 
 from fastapi import HTTPException, Request, Response
 
-from .config import API_KEYS, COOKIE_NAME, MANAGEMENT_KEY, SESSION_TTL_S
+from . import config
+from .config import COOKIE_NAME, MANAGEMENT_KEY, SESSION_TTL_S
 
 _fail_count: dict[str, list[float]] = defaultdict(list)
 _MAX_FAILS = 8
@@ -85,12 +86,21 @@ def session_valid(request: Request) -> bool:
 
 
 def bearer_valid(request: Request) -> bool:
+    """env LNC_API_KEYS ∪ UI-managed keys (enabled, hash-matched)."""
     auth = request.headers.get("authorization", "")
     if not auth.lower().startswith("bearer "):
         return False
     token = auth[7:].strip()
+    if not token:
+        return False
     token_hash = _sha(token)
-    return any(hmac.compare_digest(token_hash, _sha(k)) for k in API_KEYS)
+    if any(hmac.compare_digest(token_hash, _sha(k)) for k in config._api_keys()):
+        return True
+    return any(
+        r.get("enabled", True)
+        and hmac.compare_digest(token_hash, str(r.get("sha256", "")))
+        for r in config.cfg_key_records()
+    )
 
 
 def require_session(request: Request) -> None:
@@ -107,6 +117,6 @@ def require_api_or_session(request: Request) -> str:
     raise HTTPException(401, "auth_required")
 
 
-def mint_api_key() -> str:
-    """Admin UI: generate a key to add to LNC_API_KEYS env (we don't persist keys)."""
-    return "nblm_" + secrets.token_urlsafe(24)
+def mint_api_key(label: str = "") -> dict:
+    """Admin UI: create + persist a UI-managed key (hash stored, secret shown once)."""
+    return config.add_api_key(label or "minted")

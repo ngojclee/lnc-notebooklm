@@ -293,13 +293,46 @@ async def set_settings(request: Request):
     return {"ok": True, "settings": config.masked_config()}
 
 
+@app.get("/api/admin/keys")
+async def list_keys():
+    keys = [
+        {k: r[k] for k in ("id", "label", "prefix", "enabled", "created") if k in r}
+        for r in config.cfg_key_records()
+    ]
+    return {"ok": True, "keys": keys, "env_keys": len(config._api_keys())}
+
+
+@app.post("/api/admin/keys")
+async def create_key(request: Request):
+    body = await request.json()
+    rec = auth.mint_api_key(str(body.get("label", "")).strip())
+    secret = rec.pop("secret")
+    return {"ok": True, "key": secret, "item": rec,
+            "note": "Stored as hash — shown once, works immediately, no redeploy needed."}
+
+
+@app.post("/api/admin/keys/{key_id}/toggle")
+async def toggle_key(key_id: str):
+    keys = config.cfg_key_records()
+    rec = next((r for r in keys if r.get("id") == key_id), None)
+    if rec is None:
+        raise HTTPException(404, "not_found")
+    out = config.update_api_key(key_id, enabled=not rec.get("enabled", True))
+    return {"ok": True, "item": out}
+
+
+@app.delete("/api/admin/keys/{key_id}")
+async def revoke_key(key_id: str):
+    if not config.delete_api_key(key_id):
+        raise HTTPException(404, "not_found")
+    return {"ok": True}
+
+
 @app.post("/api/admin/mint-key")
 async def mint_key():
-    return {
-        "ok": True,
-        "key": auth.mint_api_key(),
-        "note": "Append to LNC_API_KEYS env (comma-separated) and redeploy.",
-    }
+    rec = auth.mint_api_key()
+    return {"ok": True, "key": rec.pop("secret"), "item": rec,
+            "note": "Saved to config — works immediately."}
 
 
 # -------------------------------------------------- /mcp — connector boundary

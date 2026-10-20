@@ -5,10 +5,12 @@ Tier 2: runtime tunables → JSON config at DATA_DIR/config.json, editable via /
 Tier 3: secrets → env only (MANAGEMENT_KEY, LNC_API_KEYS) — never persisted.
 """
 
+import hashlib
 import json
 import os
 import secrets
 import tempfile
+import time
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
@@ -88,6 +90,58 @@ MANAGEMENT_KEY = _bootstrap_mgmt_key()
 API_KEYS = _api_keys()
 
 
+# ------------------------------------------------- UI-managed API keys
+# Env keys (LNC_API_KEYS) always work. UI keys live in config.json as
+# sha256 hashes + prefix only — plaintext is shown once at creation,
+# never stored or readable back.
+
+def cfg_key_records() -> list[dict]:
+    keys = load_config().get("api_keys")
+    return [r for r in keys if isinstance(r, dict)] if isinstance(keys, list) else []
+
+
+def _write_key_records(keys: list[dict]) -> None:
+    cfg = load_config()
+    if keys:
+        cfg["api_keys"] = keys
+    else:
+        cfg.pop("api_keys", None)
+    save_config(cfg)
+
+
+def add_api_key(label: str) -> dict:
+    key = "nblm_" + secrets.token_urlsafe(24)
+    rec = {
+        "id": secrets.token_hex(4), "label": label, "prefix": key[:14],
+        "sha256": hashlib.sha256(key.encode()).hexdigest(),
+        "enabled": True, "created": int(time.time()),
+    }
+    _write_key_records(cfg_key_records() + [rec])
+    return {**rec, "secret": key}
+
+
+def update_api_key(key_id: str, **fields) -> dict | None:
+    keys = cfg_key_records()
+    for r in keys:
+        if r.get("id") == key_id:
+            if "enabled" in fields:
+                r["enabled"] = bool(fields["enabled"])
+            if "label" in fields:
+                r["label"] = str(fields["label"])
+            _write_key_records(keys)
+            return r
+    return None
+
+
+def delete_api_key(key_id: str) -> bool:
+    keys = cfg_key_records()
+    keep = [r for r in keys if r.get("id") != key_id]
+    if len(keep) == len(keys):
+        return False
+    _write_key_records(keep)
+    return True
+
+
 @dataclass
 class RuntimeConfig:
     rpc_overrides: dict = field(default_factory=dict)
@@ -161,7 +215,7 @@ def masked_config() -> dict:
         "allowed_hosts": allowed_hosts(),
         "env": {
             "MANAGEMENT_KEY": "********" if os.environ.get("MANAGEMENT_KEY") else "(generated)",
-            "LNC_API_KEYS": f"{len(API_KEYS)} key(s)",
+            "LNC_API_KEYS": f"{len(_api_keys())} env + {len(cfg_key_records())} ui key(s)",
             "CONNECTOR_BEARER": _secret_state("CONNECTOR_BEARER"),
             "DELEGATION_SECRET": _secret_state("DELEGATION_SECRET"),
             "NOTEBOOKLM_MCP_CLI_PATH": os.environ.get("NOTEBOOKLM_MCP_CLI_PATH"),

@@ -17,6 +17,7 @@
     <a href="#status">status</a>
     <a href="#credentials">credentials</a>
     <a href="#inbox">inbox</a>
+    <a href="#keys">keys</a>
     <a href="#settings">settings</a>
   </nav>
   <div class="topright"><span id="health" class="pill"></span><button class="btn btn-ghost" id="signout">sign out</button></div>
@@ -64,6 +65,26 @@
         <table class="data-table" id="files-table"><thead>
           <tr><th>name</th><th>size</th><th>container path</th><th></th></tr>
         </thead><tbody id="files-body"></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" id="keys">
+    <div class="card">
+      <div class="card-header"><h2>API keys</h2>
+        <button class="btn btn-sm" id="refresh-keys">refresh</button></div>
+      <div class="card-body">
+        <p class="hint">Bearer keys for <code>/mcp</code> + <code>/api/files</code>.
+        Stored as hashes — full secret is shown once at creation. Keys from
+        <code>LNC_API_KEYS</code> env also stay valid (count shown below).</p>
+        <div class="toolbar">
+          <input id="key-label" type="text" placeholder="label (e.g. codex)" style="max-width:260px">
+          <button class="btn btn-primary" id="create-key">create key</button>
+        </div>
+        <div class="alert" id="key-result" hidden></div>
+        <table class="data-table"><thead>
+          <tr><th>label</th><th>prefix</th><th>status</th><th>created</th><th></th></tr>
+        </thead><tbody id="keys-body"></tbody></table>
       </div>
     </div>
   </section>
