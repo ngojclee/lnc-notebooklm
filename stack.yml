@@ -23,7 +23,14 @@
 #   LNC_API_KEYS  — danh sách Bearer key cho /mcp + /api/files,
 #                   comma-separated, 1 key/consumer (per-agent).
 #   MAX_UPLOAD_MB — giới hạn upload /api/files (mặc định 200).
-#   PUBLIC_BASE_URL — vd http://notebooklm.lengoc.me (download_url).
+#   ALLOWED_HOSTS — comma-separated hostnames/IPs được chấp nhận (kiểu
+#                   GA_ALLOWED_HOSTS). Vd:
+#                   notebooklm.lengoc.me,lnc-notebooklm,10.21.4.101
+#                   Để trống/"*" = chấp nhận mọi Host (IP + domain đều vào).
+#   PUBLIC_BASE_URL — tuỳ chọn. Để TRỐNG: app tự sinh URL theo Host của
+#                   request (vào bằng IP ra link IP, vào bằng domain ra
+#                   link domain; https khi qua NPM). Chỉ set nếu muốn ép
+#                   1 canonical base URL.
 #
 # BUSINESS MCP HUB CONNECTOR (delegation contract):
 #   CONNECTOR_BEARER    — token Hub gửi, riêng cho connector (KHÔNG trùng
@@ -53,6 +60,7 @@ services:
       - MANAGEMENT_KEY=${MANAGEMENT_KEY:-}   # PHẢI có — env Portainer mới vào được
       - LNC_API_KEYS=${LNC_API_KEYS:-}
       - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-200}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-}
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}
       - NOTEBOOKLM_RPC_OVERRIDES=${NOTEBOOKLM_RPC_OVERRIDES:-}  # hot-patch khi Google xoay RPC id
       - CONNECTOR_BEARER=${CONNECTOR_BEARER:-}         # Hub-issued — xem header

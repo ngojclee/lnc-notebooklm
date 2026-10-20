@@ -25,6 +25,8 @@ from . import __version__, auth, config, connector, nblm
 STATIC_DIR = Path(__file__).parent / "static"
 MAX_UPLOAD_MB = int(__import__("os").environ.get("MAX_UPLOAD_MB", "200"))
 
+from starlette.middleware.trustedhost import TrustedHostMiddleware  # noqa: E402
+
 from notebooklm_tools.mcp.server import mcp as _mcp  # noqa: E402
 
 # Upstream streamable-http MCP in JSON-response mode (uniform RPC responses
@@ -56,6 +58,11 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="lnc-notebooklm", version=__version__, lifespan=lifespan)
+
+# ALLOWED_HOSTS env — accept by domain AND IP (e.g.
+# "notebooklm.lengoc.me,lnc-notebooklm,10.21.4.101"); unset/"*" = any host.
+if config.allowed_hosts() != ["*"]:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=config.allowed_hosts())
 
 
 # ---------------------------------------------------------------- middleware
@@ -158,7 +165,8 @@ async def status(request: Request):
         "version": __version__,
         "nblm": st,
         "inbox_files": len(files),
-        "mcp_endpoint": "/mcp",
+        "base_url": config.public_base(request),
+        "mcp_endpoint": config.public_base(request) + "/mcp",
     }
 
 
@@ -173,18 +181,35 @@ async def upload(request: Request, file: UploadFile):
     safe = "".join(c for c in Path(file.filename or "file").name if c.isalnum() or c in "._- ")
     dest = config.INBOX_DIR / f"{uuid.uuid4().hex[:8]}-{safe.strip() or 'file'}"
     dest.write_bytes(data)
-    return {"ok": True, "name": dest.name, "path": str(dest), "size": len(data)}
+    base = config.public_base(request)
+    return {
+        "ok": True, "name": dest.name, "path": str(dest), "size": len(data),
+        "url": f"{base}/api/files/{dest.name}",
+    }
 
 
 @app.get("/api/files")
 async def list_files(request: Request):
     auth.require_api_or_session(request)
+    base = config.public_base(request)
     files = [
-        {"name": f.name, "path": str(f), "size": f.stat().st_size, "mtime": f.stat().st_mtime}
+        {
+            "name": f.name, "path": str(f), "size": f.stat().st_size,
+            "mtime": f.stat().st_mtime, "url": f"{base}/api/files/{f.name}",
+        }
         for f in sorted(config.INBOX_DIR.glob("*"))
         if f.is_file()
     ]
     return {"ok": True, "files": files}
+
+
+@app.get("/api/files/{name}")
+async def get_file(request: Request, name: str):
+    auth.require_api_or_session(request)
+    f = config.INBOX_DIR / Path(name).name
+    if not f.exists() or f.parent != config.INBOX_DIR or not f.is_file():
+        raise HTTPException(404, "not_found")
+    return FileResponse(f)
 
 
 @app.delete("/api/files/{name}")
@@ -258,8 +283,10 @@ async def mint_key():
 # Business MCP Hub → Bearer CONNECTOR_BEARER + signed X-MCP-Hub-Client-*
 # delegation headers → scope-checked + tools/list filtered proxy.
 # Internal agents may still use a plain LNC_API_KEYS Bearer (no delegation).
+# NOTE: "host" is deliberately forwarded so upstream sees the real
+# domain/IP the client used (self-derived URLs, consistent Host checks).
 
-_HOP_HEADERS = {"host", "content-length", "transfer-encoding", "connection"}
+_HOP_HEADERS = {"content-length", "transfer-encoding", "connection"}
 
 
 @app.api_route("/mcp", methods=["POST"])

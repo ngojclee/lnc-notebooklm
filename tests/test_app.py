@@ -72,7 +72,7 @@ async def test_api_status_with_bearer(client, monkeypatch):
     )
     r = await client.get("/api/status", headers={"authorization": "Bearer test-api-key"})
     j = r.json()
-    assert j["ok"] and j["mcp_endpoint"] == "/mcp"
+    assert j["ok"] and j["mcp_endpoint"].endswith("/mcp") and j["base_url"].startswith("http")
 
 
 async def test_upload_and_list_files(client, tmp_path):

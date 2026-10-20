@@ -17,6 +17,29 @@ INBOX_DIR = DATA_DIR / "inbox"
 CONFIG_PATH = DATA_DIR / "config.json"
 PORT = int(os.environ.get("PORT", "8000"))
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
+
+
+def allowed_hosts() -> list[str]:
+    """ALLOWED_HOSTS env — comma-separated, '*' or empty = accept all (internal app).
+
+    Mirrors GA_ALLOWED_HOSTS pattern: list every name/IP clients may use,
+    e.g. "notebooklm.lengoc.me,lnc-notebooklm,10.21.4.101".
+    """
+    raw = os.environ.get("ALLOWED_HOSTS", "").strip()
+    if not raw or raw == "*":
+        return ["*"]
+    return [h.strip() for h in raw.split(",") if h.strip()]
+
+
+def public_base(request) -> str:
+    """Base URL for generated links — PUBLIC_BASE_URL env wins, else derive
+    from the request Host (works for IP *and* domain access; scheme honors
+    X-Forwarded-Proto via --proxy-headers)."""
+    if PUBLIC_BASE_URL:
+        return PUBLIC_BASE_URL
+    return str(request.base_url).rstrip("/")
+
+
 COOKIE_NAME = "nblm_session"
 SESSION_TTL_S = 12 * 3600
 
@@ -115,9 +138,12 @@ def masked_config() -> dict:
         "default_notebook_id": rt.default_notebook_id,
         "data_dir": str(DATA_DIR),
         "public_base_url": PUBLIC_BASE_URL,
+        "allowed_hosts": allowed_hosts(),
         "env": {
             "MANAGEMENT_KEY": "********" if os.environ.get("MANAGEMENT_KEY") else "(generated)",
             "LNC_API_KEYS": f"{len(API_KEYS)} key(s)",
+            "CONNECTOR_BEARER": "set" if os.environ.get("CONNECTOR_BEARER") else "unset",
+            "DELEGATION_SECRET": "set" if os.environ.get("DELEGATION_SECRET") else "unset",
             "NOTEBOOKLM_MCP_CLI_PATH": os.environ.get("NOTEBOOKLM_MCP_CLI_PATH"),
             "NOTEBOOKLM_DISABLE_HEADLESS_REFRESH": os.environ.get(
                 "NOTEBOOKLM_DISABLE_HEADLESS_REFRESH", "0"
