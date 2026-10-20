@@ -61,15 +61,21 @@
           <div class="card-header"><h2>Session cookies</h2><span class="sub" id="cred-state"></span></div>
           <div class="card-body">
             <p class="hint">Paste the full <code>Cookie:</code> request header from a logged-in
-            <code>notebooklm.google.com</code> browser session — DevTools → Network → any request →
-            Request Headers. The <strong>LNC Cookie Bridge</strong> JSON export is accepted too
-            (<code>Copy JSON</code> in the extension popup → paste here). The CSRF token and session
+            <code>notebook.google.com</code> browser session — DevTools → Network → any request →
+            Request Headers. The <strong>LNC Cookie Bridge</strong> JSON export is preferred:
+            pick the notebook tab → <code>Copy JSON</code> → paste here (it carries cookie domains,
+            so per-subdomain <code>OSID</code>s can't collide). The CSRF token and session
             ID are extracted automatically on the first call.</p>
             <label class="field"><span class="field-label">Cookie header or JSON export</span>
               <textarea id="cookie-in" rows="5" spellcheck="false" placeholder="SID=…; HSID=…; SSID=…; APISID=…; SAPISID=…&#10;&#10;— or paste a [{name, value, …}] export from LNC Cookie Bridge"></textarea></label>
-            <label class="field"><span class="field-label">Google account index (authuser) — the N in notebook.google.com/?authuser=N</span>
-              <input id="authuser-in" type="number" min="0" max="9" value="0" style="max-width:120px"></label>
-            <div class="toolbar">
+            <div class="field-grid">
+              <label class="field"><span class="field-label">Google account index (authuser)</span>
+                <input id="authuser-in" type="number" min="0" max="9" value="0">
+                <span class="field-help">Which signed-in Google account RPCs run as — the N in
+                <code>notebook.google.com/?authuser=N</code>. One cookie jar serves every account;
+                switch the index anytime without re-pasting cookies.</span></label>
+            </div>
+            <div class="toolbar toolbar-equal">
               <button class="btn btn-primary" id="save-cookies">Save &amp; validate</button>
               <button class="btn" id="refresh-cookies">Rotate (http-only)</button>
             </div>
