@@ -263,6 +263,43 @@ async def test_plain_api_key_still_works(client):
     assert r.status_code == 200
 
 
+async def test_ui_settings_connector_fallback(client, monkeypatch):
+    """Empty env → UI-saved connector creds picked up by delegation verify."""
+    monkeypatch.delenv("CONNECTOR_BEARER", raising=False)
+    monkeypatch.delenv("DELEGATION_SECRET", raising=False)
+    # login session
+    r = await client.post("/api/auth/login", json={"key": "test-mgmt-key"})
+    assert r.status_code == 200
+    r = await client.post("/api/admin/settings", json={
+        "connector_bearer": "ui-bearer", "delegation_secret": "ui-secret"})
+    assert r.status_code == 200
+    assert r.json()["settings"]["env"]["CONNECTOR_BEARER"] == "set (ui)"
+    # values never echoed
+    assert "ui-secret" not in r.text and "ui-bearer" not in r.text
+    # delegation now verifies against UI secret
+    h = _hub_headers("ui-secret")
+    h["authorization"] = "Bearer ui-bearer"
+    connector._nonces.clear()
+    r = await client.post("/mcp", json=_rpc("tools/list"), headers=h)
+    assert r.status_code != 401
+    # clearing restores env-only (unset → delegation off)
+    r = await client.post("/api/admin/settings", json={
+        "connector_bearer": "", "delegation_secret": ""})
+    assert r.json()["settings"]["env"]["CONNECTOR_BEARER"] == "unset"
+
+
+async def test_ui_settings_public_base_override(client):
+    r = await client.post("/api/auth/login", json={"key": "test-mgmt-key"})
+    assert r.status_code == 200
+    await client.post("/api/admin/settings", json={
+        "public_base_url": "https://notebooklm.lengoc.me"})
+    r = await client.get("/api/status", headers={"authorization": "Bearer test-api-key"})
+    assert r.json()["mcp_endpoint"] == "https://notebooklm.lengoc.me/mcp"
+    await client.post("/api/admin/settings", json={"public_base_url": ""})
+    r = await client.get("/api/status", headers={"authorization": "Bearer test-api-key"})
+    assert r.json()["base_url"] == "http://t"
+
+
 async def test_rpc_overrides_roundtrip(client, monkeypatch):
     monkeypatch.setenv("NOTEBOOKLM_RPC_OVERRIDES", "")
     async def login(c):

@@ -27,11 +27,13 @@ import time
 from collections.abc import Awaitable, Callable
 
 def connector_bearer() -> str:
-    return os.environ.get("CONNECTOR_BEARER", "").strip()
+    from .config import env_or_cfg
+    return env_or_cfg("CONNECTOR_BEARER", "connector_bearer")
 
 
 def delegation_secret() -> str:
-    return os.environ.get("DELEGATION_SECRET", "").strip()
+    from .config import env_or_cfg
+    return env_or_cfg("DELEGATION_SECRET", "delegation_secret")
 
 
 def connector_audience() -> str:

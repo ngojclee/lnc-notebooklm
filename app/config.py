@@ -19,6 +19,16 @@ PORT = int(os.environ.get("PORT", "8000"))
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
 
 
+def _cfg_value(key: str) -> str:
+    """UI-settable value persisted in /data/config.json (credential-bearing volume)."""
+    return str(load_config().get(key) or "").strip()
+
+
+def env_or_cfg(env_name: str, cfg_key: str) -> str:
+    """Precedence: env wins (deployment-managed), else UI-persisted config."""
+    return os.environ.get(env_name, "").strip() or _cfg_value(cfg_key)
+
+
 def allowed_hosts() -> list[str]:
     """ALLOWED_HOSTS env — comma-separated, '*' or empty = accept all (internal app).
 
@@ -32,11 +42,13 @@ def allowed_hosts() -> list[str]:
 
 
 def public_base(request) -> str:
-    """Base URL for generated links — PUBLIC_BASE_URL env wins, else derive
-    from the request Host (works for IP *and* domain access; scheme honors
-    X-Forwarded-Proto via --proxy-headers)."""
-    if PUBLIC_BASE_URL:
-        return PUBLIC_BASE_URL
+    """Base URL for generated links — PUBLIC_BASE_URL env wins, else
+    UI-saved `public_base_url`, else derive from the request Host (works
+    for IP *and* domain access; scheme honors X-Forwarded-Proto via
+    --proxy-headers)."""
+    fixed = PUBLIC_BASE_URL or _cfg_value("public_base_url")
+    if fixed:
+        return fixed
     return str(request.base_url).rstrip("/")
 
 
@@ -130,6 +142,14 @@ def apply_stored_overrides() -> None:
         os.environ["NOTEBOOKLM_RPC_OVERRIDES"] = json.dumps(stored)
 
 
+def _secret_state(env_name: str) -> str:
+    if os.environ.get(env_name, "").strip():
+        return "set (env)"
+    if _cfg_value(env_name.lower()):
+        return "set (ui)"
+    return "unset"
+
+
 def masked_config() -> dict:
     """Config for /api/settings — secrets never leave this process."""
     rt = get_runtime()
@@ -137,13 +157,13 @@ def masked_config() -> dict:
         "rpc_overrides": rt.rpc_overrides,
         "default_notebook_id": rt.default_notebook_id,
         "data_dir": str(DATA_DIR),
-        "public_base_url": PUBLIC_BASE_URL,
+        "public_base_url": env_or_cfg("PUBLIC_BASE_URL", "public_base_url") or "(auto from request)",
         "allowed_hosts": allowed_hosts(),
         "env": {
             "MANAGEMENT_KEY": "********" if os.environ.get("MANAGEMENT_KEY") else "(generated)",
             "LNC_API_KEYS": f"{len(API_KEYS)} key(s)",
-            "CONNECTOR_BEARER": "set" if os.environ.get("CONNECTOR_BEARER") else "unset",
-            "DELEGATION_SECRET": "set" if os.environ.get("DELEGATION_SECRET") else "unset",
+            "CONNECTOR_BEARER": _secret_state("CONNECTOR_BEARER"),
+            "DELEGATION_SECRET": _secret_state("DELEGATION_SECRET"),
             "NOTEBOOKLM_MCP_CLI_PATH": os.environ.get("NOTEBOOKLM_MCP_CLI_PATH"),
             "NOTEBOOKLM_DISABLE_HEADLESS_REFRESH": os.environ.get(
                 "NOTEBOOKLM_DISABLE_HEADLESS_REFRESH", "0"

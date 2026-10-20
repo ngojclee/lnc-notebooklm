@@ -34,6 +34,8 @@ async function loadSettings(){
   const j=await api('/api/settings');
   $('#settings-body').textContent=JSON.stringify(j.settings,null,1);
   $('#rpc-overrides').value=JSON.stringify(j.settings?.rpc_overrides||{},null,1);
+  const pb=j.settings?.public_base_url||'';
+  if(pb!=='(auto from request)')$('#set-public-base').value=pb;
 }
 async function loadFiles(){
   const j=await api('/api/files');
@@ -69,6 +71,15 @@ $('#file-in').onchange=async ev=>{
 $('#files-body').onclick=async ev=>{
   const name=ev.target.dataset?.del;if(!name)return;
   await api('/api/files/'+encodeURIComponent(name),{method:'DELETE'});loadFiles();
+};
+$('#save-settings').onclick=async()=>{
+  const body={};
+  const pb=$('#set-public-base').value.trim();if(pb||pb==='')body.public_base_url=pb;
+  const cb=$('#set-conn-bearer').value.trim();if(cb)body.connector_bearer=cb;
+  const ds=$('#set-del-secret').value.trim();if(ds)body.delegation_secret=ds;
+  const j=await api('/api/admin/settings',{method:'POST',body:JSON.stringify(body)});
+  if(j.ok){$('#set-conn-bearer').value='';$('#set-del-secret').value='';alert('saved');loadSettings()}
+  else alert('failed: '+j.error);
 };
 $('#save-overrides').onclick=async()=>{
   let v=null;const raw=$('#rpc-overrides').value.trim();

@@ -270,6 +270,29 @@ async def set_overrides(request: Request):
     return {"ok": True, "rpc_overrides": config.get_runtime().rpc_overrides}
 
 
+UI_SETTINGS_KEYS = ("public_base_url", "connector_bearer", "delegation_secret")
+
+
+@app.post("/api/admin/settings")
+async def set_settings(request: Request):
+    """UI-managed settings → /data/config.json. Env vars take precedence when
+    set (Portainer-managed); empty-string clears a UI value back to env-only.
+    Secrets are write-only: masked in GET /api/settings, never echoed."""
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(400, "body_must_be_object")
+    cfg = config.load_config()
+    for k in UI_SETTINGS_KEYS:
+        if k in body:
+            v = str(body[k] or "").strip()
+            if v:
+                cfg[k] = v
+            else:
+                cfg.pop(k, None)
+    await run_in_threadpool(config.save_config, cfg)
+    return {"ok": True, "settings": config.masked_config()}
+
+
 @app.post("/api/admin/mint-key")
 async def mint_key():
     return {

@@ -72,10 +72,17 @@
     <div class="card">
       <div class="card-header"><h2>Runtime settings</h2></div>
       <div class="card-body">
+        <label class="field"><span class="field-label">Public base URL (optional — empty = auto-derive from request Host)</span>
+        <input id="set-public-base" type="text" spellcheck="false" placeholder="https://notebooklm.lengoc.me"></label>
+        <label class="field"><span class="field-label">Connector bearer (Hub-issued — write-only)</span>
+        <input id="set-conn-bearer" type="password" spellcheck="false" autocomplete="off" placeholder="paste Hub-issued bearer"></label>
+        <label class="field"><span class="field-label">Delegation secret (Hub-issued — write-only)</span>
+        <input id="set-del-secret" type="password" spellcheck="false" autocomplete="off" placeholder="paste Hub-issued delegation secret"></label>
+        <div class="toolbar"><button class="btn" id="save-settings">save settings</button>
+        <button class="btn btn-ghost" id="mint-key">mint api key</button></div>
         <label class="field"><span class="field-label">RPC overrides (JSON — hot-patch rotated batchexecute method IDs; empty = clear)</span>
         <textarea id="rpc-overrides" rows="4" spellcheck="false" placeholder='{"RPC_LIST_NOTEBOOKS": "abc123"}'></textarea></label>
-        <div class="toolbar"><button class="btn" id="save-overrides">save</button>
-        <button class="btn btn-ghost" id="mint-key">mint api key</button></div>
+        <div class="toolbar"><button class="btn" id="save-overrides">save overrides</button></div>
         <pre class="code-block" id="settings-body"></pre>
       </div>
     </div>
