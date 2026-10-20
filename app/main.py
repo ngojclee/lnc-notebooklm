@@ -222,6 +222,27 @@ async def delete_file(request: Request, name: str):
     return {"ok": True}
 
 
+@app.post("/api/credentials")
+async def push_credentials(request: Request):
+    """Cookie push for the LNC-Cookie-Bridge extension (bearer) and the
+    admin UI (session). Accepts {"cookie_header": "a=b; c=d"} or
+    {"cookies": [{"name": …, "value": …}, …]} (J2Team export shape)."""
+    auth.require_api_or_session(request)
+    body = await request.json()
+    header = str(body.get("cookie_header", "")).strip()
+    if not header:
+        cookies = body.get("cookies") or []
+        if isinstance(cookies, list):
+            header = "; ".join(
+                f"{c.get('name')}={c.get('value')}"
+                for c in cookies
+                if isinstance(c, dict) and c.get("name") and c.get("value") is not None
+            )
+    if not header:
+        raise HTTPException(400, "cookies_required")
+    return await run_in_threadpool(nblm.save_cookie_header, header)
+
+
 # ------------------------------------------------------------- admin (session)
 
 

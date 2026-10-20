@@ -411,3 +411,40 @@ async def test_env_key_adoption(client):
     entry = next(e for e in (await client.get("/api/admin/keys")).json()["env"]
                if e["prefix"] == env_key[:14])
     assert entry["revoked"] is True
+
+
+async def test_push_credentials_endpoint(client, monkeypatch):
+    """POST /api/credentials accepts both body shapes; bearer + session both work."""
+    H = {"authorization": "Bearer test-api-key"}
+
+    # unauthenticated → 401
+    client.cookies.clear()
+    assert (await client.post("/api/credentials", json={})).status_code == 401
+
+    calls = []
+    monkeypatch.setattr(
+        "app.main.nblm.save_cookie_header",
+        lambda h: (calls.append(h) or {"ok": True, "saved": True}),
+    )
+
+    # bearer + raw header
+    r = await client.post("/api/credentials", headers=H,
+                          json={"cookie_header": "SID=x; HSID=y"})
+    assert r.status_code == 200 and r.json()["ok"]
+    assert calls[-1] == "SID=x; HSID=y"
+
+    # J2Team cookies array → header rebuilt
+    r = await client.post("/api/credentials", headers=H, json={"cookies": [
+        {"name": "SID", "value": "s"}, {"name": "HSID", "value": "h"},
+        {"name": "bad"}, "junk",
+    ]})
+    assert calls[-1] == "SID=s; HSID=h"
+
+    # session also works
+    await client.post("/api/auth/login", json={"key": "test-mgmt-key"})
+    r = await client.post("/api/credentials", json={"cookie_header": "SID=z"})
+    assert r.status_code == 200 and calls[-1] == "SID=z"
+
+    # empty body → 400
+    client.cookies.clear()
+    assert (await client.post("/api/credentials", headers=H, json={})).status_code == 400
