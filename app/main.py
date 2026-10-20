@@ -9,39 +9,50 @@ Shape-0 internal app per lnc-internal-app-blueprint:
   /mcp              upstream notebooklm-mcp streamable-http — Bearer api_key only
 """
 
+import json
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.staticfiles import StaticFiles
 
-from . import __version__, auth, config, nblm
+from . import __version__, auth, config, connector, nblm
 
 STATIC_DIR = Path(__file__).parent / "static"
 MAX_UPLOAD_MB = int(__import__("os").environ.get("MAX_UPLOAD_MB", "200"))
 
 from notebooklm_tools.mcp.server import mcp as _mcp  # noqa: E402
 
-# Upstream streamable-http MCP, served at /mcp inside the outer app.
-# allowed_hosts/allowed_origins are permissive because our middleware
-# enforces Bearer auth before any request reaches the MCP app.
+# Upstream streamable-http MCP in JSON-response mode (uniform RPC responses
+# we can inspect for tools/list filtering). Reached ONLY via our /mcp proxy.
 _mcp_app = _mcp.http_app(
     path="/mcp",
+    json_response=True,
     allowed_hosts=["*"],
     allowed_origins=["*"],
 )
+_mcp_client: httpx.AsyncClient | None = None
 
 
 @asynccontextmanager
 async def lifespan(_app):
+    global _mcp_client
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     config.INBOX_DIR.mkdir(parents=True, exist_ok=True)
     config.apply_stored_overrides()
     async with _mcp_app.lifespan(_app):
+        _mcp_client = httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=_mcp_app),
+            base_url="http://inner",
+            timeout=httpx.Timeout(600.0, connect=10.0),
+        )
         yield
+        await _mcp_client.aclose()
+        _mcp_client = None
 
 
 app = FastAPI(title="lnc-notebooklm", version=__version__, lifespan=lifespan)
@@ -57,12 +68,24 @@ async def gate(request: Request, call_next):
         if not auth.session_valid(request):
             return RedirectResponse("/login.html", status_code=303)
     elif p.startswith("/mcp"):
-        if not auth.bearer_valid(request):
+        token = _bearer_token(request)
+        if connector.connector_bearer() and token == connector.connector_bearer():
+            # Hub calls: GET/DELETE streams must carry valid delegation too.
+            if request.method in ("GET", "DELETE"):
+                d = connector.verify_delegation(request.headers)
+                if not d["ok"]:
+                    return _err(401, d["error"])
+        elif not auth.bearer_valid(request):
             return _err(401, "bearer_required")
     elif p.startswith("/api/admin"):
         if not auth.session_valid(request):
             return _err(401, "session_required")
     return await call_next(request)
+
+
+def _bearer_token(request: Request) -> str:
+    a = request.headers.get("authorization", "")
+    return a[7:].strip() if a.lower().startswith("bearer ") else ""
 
 
 def _err(status: int, code: str, **extra):
@@ -229,6 +252,74 @@ async def mint_key():
         "key": auth.mint_api_key(),
         "note": "Append to LNC_API_KEYS env (comma-separated) and redeploy.",
     }
+
+
+# -------------------------------------------------- /mcp — connector boundary
+# Business MCP Hub → Bearer CONNECTOR_BEARER + signed X-MCP-Hub-Client-*
+# delegation headers → scope-checked + tools/list filtered proxy.
+# Internal agents may still use a plain LNC_API_KEYS Bearer (no delegation).
+
+_HOP_HEADERS = {"host", "content-length", "transfer-encoding", "connection"}
+
+
+@app.api_route("/mcp", methods=["POST"])
+async def mcp_proxy(request: Request):
+    token = _bearer_token(request)
+    delegation = None
+    if connector.connector_bearer() and token == connector.connector_bearer():
+        delegation = connector.verify_delegation(request.headers)
+        if not delegation["ok"]:
+            return _err(401, delegation["error"])
+    elif not auth.bearer_valid(request):
+        return _err(401, "bearer_required")
+
+    body = await request.body()
+    rpc = None
+    try:
+        rpc = json.loads(body) if body else None
+    except json.JSONDecodeError:
+        pass
+
+    if delegation and isinstance(rpc, dict):
+        if rpc.get("method") == "tools/call":
+            name = str(rpc.get("params", {}).get("name", ""))
+            err = connector.check_tool_scope(name, delegation["scopes"])
+            if err:
+                return _err(403, err, tool=name)
+
+    headers = {k: v for k, v in request.headers.items() if k.lower() not in _HOP_HEADERS}
+    global _mcp_client
+    if _mcp_client is None:
+        _mcp_client = httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=_mcp_app),
+            base_url="http://inner",
+            timeout=httpx.Timeout(600.0, connect=10.0),
+        )
+    upstream = await _mcp_client.request(
+        request.method, "/mcp", headers=headers, content=body,
+        params=request.query_params,
+    )
+
+    content = upstream.content
+    if (
+        delegation and isinstance(rpc, dict)
+        and rpc.get("method") == "tools/list"
+        and upstream.headers.get("content-type", "").startswith("application/json")
+    ):
+        try:
+            data = json.loads(content)
+            result = data.get("result")
+            if isinstance(result, dict) and isinstance(result.get("tools"), list):
+                result["tools"] = [
+                    t for t in result["tools"]
+                    if not connector.check_tool_scope(t.get("name", ""), delegation["scopes"])
+                ]
+                content = json.dumps(data).encode()
+        except (json.JSONDecodeError, AttributeError):
+            pass
+
+    resp_headers = {k: v for k, v in upstream.headers.items() if k.lower() not in _HOP_HEADERS}
+    return Response(content=content, status_code=upstream.status_code, headers=resp_headers)
 
 
 # ------------------------------------------------------------------- mounts

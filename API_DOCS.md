@@ -44,6 +44,25 @@ Upstream `notebooklm-mcp` streamable-http transport. `tools/list` exposes
 `notebook_query`, `chat_*`, `studio_*`, `research_*`, `download_artifact`,
 `save_auth_tokens`, `refresh_auth`, `usage_get`, `profile`, `alias`, …
 
+### Business MCP Hub connector (`CONNECTOR_BEARER`)
+
+When Bearer equals the Hub-issued `CONNECTOR_BEARER`, the boundary enforces
+the Business MCP delegation contract (v3/v4 envelopes):
+
+- requires `X-MCP-Hub-Client-ID / -Scopes / -Timestamp / -Nonce / -Signature`
+  (+ `X-MCP-Hub-App-Id` → v4), HMAC-SHA256 verified with `DELEGATION_SECRET`
+  over `audience=CONNECTOR_AUDIENCE`;
+- timestamp skew ≤90s, nonce single-use (300s replay window);
+- delegated scopes ⊆ `CONNECTOR_MAX_SCOPES` (empty env = no ceiling);
+- `tools/call` denied (`403 tool_scope_denied` / `tool_not_in_catalog`) when
+  the tool isn't covered by delegated scopes; `tools/list` is filtered to
+  granted scopes;
+- tool→scope catalog in `app/connector.py` (`notebooklm:read|write|admin`),
+  runtime-overridable via config `tool_scopes`;
+- GET/DELETE `/mcp` streams are delegation-verified in middleware.
+
+Plain `LNC_API_KEYS` Bearers bypass delegation (direct internal agents).
+
 ## Error codes
 
 `invalid_key` `too_many_attempts` `session_required` `bearer_required`

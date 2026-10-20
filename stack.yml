@@ -24,6 +24,17 @@
 #                   comma-separated, 1 key/consumer (per-agent).
 #   MAX_UPLOAD_MB — giới hạn upload /api/files (mặc định 200).
 #   PUBLIC_BASE_URL — vd http://notebooklm.lengoc.me (download_url).
+#
+# BUSINESS MCP HUB CONNECTOR (delegation contract):
+#   CONNECTOR_BEARER    — token Hub gửi, riêng cho connector (KHÔNG trùng
+#                         LNC_API_KEYS). Lấy từ Hub admin khi tạo connector.
+#   DELEGATION_SECRET   — secret ký envelope X-MCP-Hub-Client-Signature.
+#   CONNECTOR_AUDIENCE  — mặc định "lnc-notebooklm", phải khớp audience Hub cấu hình.
+#   CONNECTOR_MAX_SCOPES — trần scope tối đa connector chấp nhận, comma-sep.
+#                         Ví dụ hạn chế: "notebooklm:read,notebooklm:write"
+#                         (không cấp admin → delete tools bị deny + ẩn khỏi tools/list).
+#   Hub URL phải là HTTPS thật (NPM proxy + cert) — contract không nhận
+#   private HTTP cho connector mới.
 # ============================================================
 
 services:
@@ -44,6 +55,10 @@ services:
       - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-200}
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}
       - NOTEBOOKLM_RPC_OVERRIDES=${NOTEBOOKLM_RPC_OVERRIDES:-}  # hot-patch khi Google xoay RPC id
+      - CONNECTOR_BEARER=${CONNECTOR_BEARER:-}         # Hub-issued — xem header
+      - DELEGATION_SECRET=${DELEGATION_SECRET:-}       # Hub-issued
+      - CONNECTOR_AUDIENCE=${CONNECTOR_AUDIENCE:-lnc-notebooklm}
+      - CONNECTOR_MAX_SCOPES=${CONNECTOR_MAX_SCOPES:-}
       - TZ=${TZ:-Europe/Paris}
     volumes:
       - ${DATA_DIR:-/home/Docker}/lnc-notebooklm:/data
