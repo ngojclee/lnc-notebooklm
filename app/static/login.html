@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>lnc-notebooklm — Sign in</title>
+<title>Sign in — lnc-notebooklm</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="icon" type="image/png" href="/static/favicon.png">
 <link rel="alternate icon" href="/static/favicon.ico">
@@ -12,34 +12,36 @@
 </head>
 <body class="login-body">
   <form class="login-panel" id="login-form" autocomplete="off">
-    <div class="login-head">
-      <img class="brand-img login-img" src="/static/favicon.svg" alt="">
-      <div class="login-brand">
-        <span class="login-title">lnc-notebooklm</span>
-        <span class="login-sub">management sign-in</span>
-      </div>
-    </div>
+    <img class="login-logo" src="/static/favicon.svg" alt="">
+    <div class="login-title">lnc-notebooklm</div>
+    <div class="login-sub">Management console — enter the management key to continue.</div>
     <label class="field">
       <span class="field-label">Management key</span>
-      <input id="key" type="password" autocomplete="current-password" required>
+      <div class="input-wrap">
+        <input id="key" type="password" autocomplete="current-password" placeholder="Enter management key" required autofocus>
+        <button type="button" class="btn btn-icon btn-ghost" id="eye" aria-label="Show key" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
     </label>
-    <button class="btn btn-primary" id="signin" type="submit" disabled>Sign in</button>
-    <div class="alert alert-danger" id="err" hidden></div>
+    <div class="alert alert-danger" id="err" hidden style="margin-bottom:14px"></div>
+    <button class="btn btn-primary" id="signin" type="submit">Sign in</button>
+    <div class="login-foot">Key lives in the <code>MANAGEMENT_KEY</code> env var — sessions last 12&nbsp;h.</div>
   </form>
 <script>
 const f=document.getElementById('login-form'),k=document.getElementById('key'),
-b=document.getElementById('signin'),e=document.getElementById('err');
-k.addEventListener('input',()=>b.disabled=!k.value.trim());
+b=document.getElementById('signin'),e=document.getElementById('err'),
+eye=document.getElementById('eye');
+eye.onclick=()=>{const on=k.type==='password';k.type=on?'text':'password';eye.setAttribute('aria-label',on?'Hide key':'Show key');k.focus()};
 f.addEventListener('submit',async ev=>{
   ev.preventDefault();b.disabled=true;e.hidden=true;
   try{
     const r=await fetch('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:k.value})});
     const j=await r.json();
-    if(!j.ok)throw new Error(j.error||'login failed');
+    if(!j.ok)throw new Error(j.error==='invalid_key'?'Wrong management key.':(j.error==='too_many_attempts'?'Too many attempts — wait 5 minutes.':(j.error||'Sign-in failed.')));
     location='/admin';
   }catch(x){e.textContent=x.message;e.hidden=false;b.disabled=false;k.value='';k.focus();}
 });
-k.focus();
 </script>
 </body>
 </html>

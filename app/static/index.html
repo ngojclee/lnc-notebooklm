@@ -11,108 +11,152 @@
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<header class="topbar">
-  <div class="brand"><img class="brand-img" src="/static/favicon.svg" alt=""> lnc-notebooklm <span class="ver" id="ver"></span></div>
-  <nav class="topnav">
-    <a href="#status">status</a>
-    <a href="#credentials">credentials</a>
-    <a href="#inbox">inbox</a>
-    <a href="#keys">keys</a>
-    <a href="#settings">settings</a>
-  </nav>
-  <div class="topright"><span id="health" class="pill"></span><button class="btn btn-ghost" id="signout">sign out</button></div>
-</header>
-<main>
-  <section class="page" id="status">
-    <div class="card">
-      <div class="card-header"><h2>Service status</h2>
-        <div class="toolbar"><button class="btn btn-sm" id="refresh-status">refresh</button>
-        <button class="btn btn-sm" id="validate-live">validate live</button></div></div>
-      <div class="card-body" id="status-body"><div class="empty">loading…</div></div>
+<div class="app">
+  <aside class="side">
+    <div class="side-brand">
+      <img src="/static/favicon.svg" alt="">
+      <div><div class="t">lnc-notebooklm</div><div class="v" id="ver">—</div></div>
     </div>
-    <div class="card">
-      <div class="card-header"><h2>Usage</h2><button class="btn btn-sm" id="refresh-usage">refresh</button></div>
-      <div class="card-body" id="usage-body"><div class="empty">loading…</div></div>
+    <div class="side-label">Operate</div>
+    <a href="#status"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span>Status</span></a>
+    <a href="#credentials"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Credentials</span></a>
+    <a href="#inbox"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.7 4H7.3a2 2 0 0 0-1.8 1.1z"/></svg><span>Inbox</span></a>
+    <a href="#keys"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.8 12.2 9.7-9.7M15.5 7.5l3 3M18.5 4.5l3 3"/></svg><span>API keys</span></a>
+    <a href="#settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.9-2.9l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.9-2.9l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></a>
+    <div class="side-foot">
+      <a href="#" id="signout"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg><span>Sign out</span></a>
     </div>
-  </section>
+  </aside>
 
-  <section class="page" id="credentials">
-    <div class="card">
-      <div class="card-header"><h2>Google credentials</h2></div>
-      <div class="card-body">
-        <p class="hint">Paste the full <code>Cookie:</code> header from a logged-in
-        <code>notebooklm.google.com</code> browser session (DevTools → Network →
-        any request → Request Headers). CSRF token and session ID are
-        auto-extracted by the upstream client on first call.</p>
-        <textarea id="cookie-in" rows="5" spellcheck="false" placeholder="SID=…; HSID=…; SSID=…; APISID=…; SAPISID=…; …"></textarea>
-        <div class="toolbar">
-          <button class="btn btn-primary" id="save-cookies">save + validate</button>
-          <button class="btn" id="refresh-cookies">rotate cookies (http-only)</button>
+  <div class="main">
+    <header class="topbar">
+      <div class="crumb" id="crumb"><b>Status</b></div>
+      <div class="topright"><span id="health" class="pill dim"><span class="dot"></span>…</span></div>
+    </header>
+
+    <main class="content">
+
+      <section class="page" id="status">
+        <div><h1 class="page-title">Status</h1>
+          <p class="page-sub">Service health, upstream auth state, and quota usage.</p></div>
+        <div class="card">
+          <div class="card-header"><h2>Service</h2>
+            <div class="toolbar">
+              <button class="btn btn-sm" id="validate-live">Validate live</button>
+              <button class="btn btn-sm btn-ghost" id="refresh-status">Refresh</button>
+            </div></div>
+          <div class="card-body" id="status-body"><div class="skel" style="width:60%"></div></div>
         </div>
-        <div class="alert" id="cred-result" hidden></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="page" id="inbox">
-    <div class="card">
-      <div class="card-header"><h2>Inbox files</h2>
-        <div class="toolbar"><label class="btn btn-sm">upload<input type="file" id="file-in" hidden></label>
-        <button class="btn btn-sm" id="refresh-files">refresh</button></div></div>
-      <div class="card-body">
-        <p class="hint">Files land in the container inbox. Pass <code>path</code> to
-        the MCP tool <code>source_add(source_type="file", file_path=…)</code>.</p>
-        <table class="data-table" id="files-table"><thead>
-          <tr><th>name</th><th>size</th><th>container path</th><th></th></tr>
-        </thead><tbody id="files-body"></tbody></table>
-      </div>
-    </div>
-  </section>
-
-  <section class="page" id="keys">
-    <div class="card">
-      <div class="card-header"><h2>API keys</h2>
-        <button class="btn btn-sm" id="refresh-keys">refresh</button></div>
-      <div class="card-body">
-        <p class="hint">Bearer keys for <code>/mcp</code> + <code>/api/files</code>.
-        Keys are stored as hashes — the full secret is shown once at creation.
-        Keys from the <code>LNC_API_KEYS</code> env var stay valid while
-        <em>unmanaged</em>; <b>adopt</b> brings an env key under this table so its
-        status here decides — disabling or revoking it works even while the value
-        remains in env (empty the env var at the next deploy).</p>
-        <div class="toolbar">
-          <input id="key-label" type="text" placeholder="label (e.g. codex)" style="max-width:260px">
-          <button class="btn btn-primary" id="create-key">create key</button>
-          <button class="btn" id="adopt-env" hidden>adopt env keys</button>
+        <div class="card">
+          <div class="card-header"><h2>Usage</h2>
+            <button class="btn btn-sm btn-ghost" id="refresh-usage">Refresh</button></div>
+          <div class="card-body" id="usage-body"><div class="skel" style="width:40%"></div></div>
         </div>
-        <div class="alert" id="key-result" hidden></div>
-        <table class="data-table"><thead>
-          <tr><th>label</th><th>prefix</th><th>source</th><th>status</th><th>created</th><th></th></tr>
-        </thead><tbody id="keys-body"></tbody></table>
-      </div>
-    </div>
-  </section>
+      </section>
 
-  <section class="page" id="settings">
-    <div class="card">
-      <div class="card-header"><h2>Runtime settings</h2></div>
-      <div class="card-body">
-        <label class="field"><span class="field-label">Public base URL (optional — empty = auto-derive from request Host)</span>
-        <input id="set-public-base" type="text" spellcheck="false" placeholder="https://notebooklm.lengoc.me"></label>
-        <label class="field"><span class="field-label">Connector bearer (Hub-issued — write-only)</span>
-        <input id="set-conn-bearer" type="password" spellcheck="false" autocomplete="off" placeholder="paste Hub-issued bearer"></label>
-        <label class="field"><span class="field-label">Delegation secret (Hub-issued — write-only)</span>
-        <input id="set-del-secret" type="password" spellcheck="false" autocomplete="off" placeholder="paste Hub-issued delegation secret"></label>
-        <div class="toolbar"><button class="btn" id="save-settings">save settings</button>
-        <button class="btn btn-ghost" id="mint-key">mint api key</button></div>
-        <label class="field"><span class="field-label">RPC overrides (JSON — hot-patch rotated batchexecute method IDs; empty = clear)</span>
-        <textarea id="rpc-overrides" rows="4" spellcheck="false" placeholder='{"RPC_LIST_NOTEBOOKS": "abc123"}'></textarea></label>
-        <div class="toolbar"><button class="btn" id="save-overrides">save overrides</button></div>
-        <pre class="code-block" id="settings-body"></pre>
-      </div>
-    </div>
-  </section>
-</main>
+      <section class="page" id="credentials">
+        <div><h1 class="page-title">Credentials</h1>
+          <p class="page-sub">Google session that powers every NotebookLM call.</p></div>
+        <div class="card">
+          <div class="card-header"><h2>Session cookies</h2><span class="sub" id="cred-state"></span></div>
+          <div class="card-body">
+            <p class="hint">Paste the full <code>Cookie:</code> request header from a logged-in
+            <code>notebooklm.google.com</code> browser session — DevTools → Network → any request →
+            Request Headers. The CSRF token and session ID are extracted automatically on the first call.</p>
+            <label class="field"><span class="field-label">Cookie header</span>
+              <textarea id="cookie-in" rows="5" spellcheck="false" placeholder="SID=…; HSID=…; SSID=…; APISID=…; SAPISID=…"></textarea></label>
+            <div class="toolbar">
+              <button class="btn btn-primary" id="save-cookies">Save &amp; validate</button>
+              <button class="btn" id="refresh-cookies">Rotate (http-only)</button>
+            </div>
+            <div id="cred-result" hidden style="margin-top:14px"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="inbox">
+        <div><h1 class="page-title">Inbox</h1>
+          <p class="page-sub">Files staged in the container for <code>source_add</code>.</p></div>
+        <div class="card">
+          <div class="card-header"><h2>Files</h2>
+            <div class="toolbar">
+              <label class="btn btn-sm">Upload<input type="file" id="file-in" hidden></label>
+              <button class="btn btn-sm btn-ghost" id="refresh-files">Refresh</button>
+            </div></div>
+          <div class="card-body flush">
+            <table class="data-table"><thead>
+              <tr><th style="width:44px"></th><th>Name</th><th>Size</th><th>Container path</th><th></th></tr>
+            </thead><tbody id="files-body"></tbody></table>
+          </div>
+          <div class="card-body" style="padding-top:12px;border-top:1px solid var(--border)">
+            <p class="hint" style="margin:0">Pass <code>path</code> to the MCP tool
+            <code>source_add(source_type="file", file_path=…)</code>.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="keys">
+        <div><h1 class="page-title">API keys</h1>
+          <p class="page-sub">Bearer keys for <code>/mcp</code> and <code>/api/files</code>.</p></div>
+        <div class="card">
+          <div class="card-header"><h2>Keys</h2>
+            <button class="btn btn-sm btn-ghost" id="refresh-keys">Refresh</button></div>
+          <div class="card-body">
+            <p class="hint">Secrets are stored as hashes — the full key is shown once at creation.
+            Keys from the <code>LNC_API_KEYS</code> env var stay valid while <em>unmanaged</em>;
+            <b>adopt</b> moves one under this table so its status here decides — disabling or revoking
+            works even while the value remains in env (empty the env var at the next deploy).</p>
+            <div class="toolbar">
+              <input id="key-label" type="text" placeholder="Label (e.g. codex)" style="max-width:240px">
+              <button class="btn btn-primary" id="create-key">Create key</button>
+              <button class="btn" id="adopt-env" hidden>Adopt env keys</button>
+            </div>
+            <div id="key-result" hidden style="margin-top:14px"></div>
+          </div>
+          <table class="data-table"><thead>
+            <tr><th>Label</th><th>Prefix</th><th>Source</th><th>Status</th><th>Created</th><th></th></tr>
+          </thead><tbody id="keys-body"></tbody></table>
+        </div>
+      </section>
+
+      <section class="page" id="settings">
+        <div><h1 class="page-title">Settings</h1>
+          <p class="page-sub">Runtime configuration — env wins when set, otherwise these saved values apply.</p></div>
+        <div class="card">
+          <div class="card-header"><h2>General</h2></div>
+          <div class="card-body">
+            <label class="field"><span class="field-label">Public base URL</span>
+              <input id="set-public-base" type="text" spellcheck="false" placeholder="https://notebooklm.lengoc.me">
+              <span class="field-help">Empty = derive from the request Host (works via IP and domain alike).</span></label>
+            <label class="field"><span class="field-label">Connector bearer <span class="badge b-plum" id="st-bearer" style="margin-left:6px">unset</span></span>
+              <input id="set-conn-bearer" type="password" spellcheck="false" autocomplete="off" placeholder="Hub-issued bearer">
+              <span class="field-help">Write-only — never displayed back after saving.</span></label>
+            <label class="field"><span class="field-label">Delegation secret <span class="badge b-plum" id="st-secret" style="margin-left:6px">unset</span></span>
+              <input id="set-del-secret" type="password" spellcheck="false" autocomplete="off" placeholder="Hub-issued delegation secret">
+              <span class="field-help">Signs Business MCP delegation headers. Write-only.</span></label>
+            <div class="toolbar">
+              <button class="btn btn-primary" id="save-settings">Save settings</button>
+              <button class="btn btn-ghost" id="mint-key">Mint API key</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2>RPC overrides</h2><span class="sub">Hot-patch rotated batchexecute method IDs</span></div>
+          <div class="card-body">
+            <textarea id="rpc-overrides" rows="4" spellcheck="false" placeholder='{"RPC_LIST_NOTEBOOKS": "abc123"}'></textarea>
+            <div class="toolbar" style="margin-top:10px"><button class="btn" id="save-overrides">Save overrides</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2>Effective configuration</h2><span class="sub">Secrets are masked</span></div>
+          <div class="card-body"><dl class="kv" id="settings-body"></dl></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+<div class="toasts" id="toasts"></div>
 <script src="/static/app.js"></script>
 </body>
 </html>

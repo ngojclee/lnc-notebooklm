@@ -32,6 +32,19 @@ def anyio_backend():
     return "asyncio"
 
 
+@pytest.fixture(autouse=True)
+def _restore_config():
+    """config.json persists under tests/.tmp-data — snapshot+restore so key
+    revocations, settings writes, and env-key adoptions never leak between tests."""
+    p = config.CONFIG_PATH
+    old = p.read_text(encoding="utf-8") if p.exists() else None
+    yield
+    if old is None:
+        p.unlink(missing_ok=True)
+    else:
+        p.write_text(old, encoding="utf-8")
+
+
 async def test_health(client):
     r = await client.get("/health")
     assert r.status_code == 200 and r.json()["ok"] is True

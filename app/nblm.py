@@ -53,20 +53,16 @@ def save_cookie_header(cookie_header: str, profile: str | None = None) -> dict:
 
 
 def auth_status() -> dict:
-    """{profiles, active, state, age_days, usable} — cheap, local reads."""
-    from notebooklm_tools.services.auth import (
-        get_active_auth_mtime,
-        get_active_auth_state,
-    )
+    """{profiles, authenticated, cookie_age_days} — cheap, local reads."""
+    from notebooklm_tools.services.auth import get_active_auth_mtime
     from notebooklm_tools.services.profiles import list_profiles
 
     profiles = list_profiles() if callable(list_profiles) else []
-    state = get_active_auth_state()
     mtime = get_active_auth_mtime()
     age_days = round((time.time() - mtime) / 86400, 1) if mtime else None
     return {
         "profiles": profiles,
-        "state": str(state),
+        "authenticated": bool(mtime),
         "cookie_age_days": age_days,
     }
 
