@@ -440,7 +440,10 @@ async def test_push_credentials_endpoint(client, monkeypatch):
     ]})
     assert calls[-1] == ([{"name": "SID", "value": "s", "domain": ".google.com"},
                           {"name": "HSID", "value": "h"}], 1)
-    calls[-1] = (calls[-1][0], None)
+    # both sent (extension url-mode) → domain-carrying list wins
+    await client.post("/api/credentials", headers=H, json={
+        "cookie_header": "SID=flat", "cookies": [{"name": "SID", "value": "s", "domain": ".google.com"}]})
+    assert calls[-1][0] == [{"name": "SID", "value": "s", "domain": ".google.com"}]
 
     # session also works
     await client.post("/api/auth/login", json={"key": "test-mgmt-key"})

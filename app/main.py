@@ -236,12 +236,13 @@ async def push_credentials(request: Request):
     body = await request.json()
     if isinstance(body, list):
         body = {"cookies": body}  # bare J2Team array as the whole payload
-    payload = str(body.get("cookie_header", "")).strip()
+    # full cookie objects win over a flat header: they carry domains
+    cookies = body.get("cookies") or []
+    payload = [c for c in cookies
+               if isinstance(c, dict) and c.get("name") and c.get("value") is not None
+               ] if isinstance(cookies, list) else []
     if not payload:
-        cookies = body.get("cookies") or []
-        if isinstance(cookies, list):
-            payload = [c for c in cookies
-                       if isinstance(c, dict) and c.get("name") and c.get("value") is not None]
+        payload = str(body.get("cookie_header", "")).strip()
     if not payload:
         raise HTTPException(400, "cookies_required")
     return await run_in_threadpool(
