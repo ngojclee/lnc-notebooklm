@@ -73,6 +73,9 @@ DEFAULT_TOOL_SCOPES: dict[str, set[str]] = {
     "report": {"notebooklm:read"},
     "notebook_share_status": {"notebooklm:read"},
     "profile": {"notebooklm:read"},
+    "label": {"notebooklm:read"},
+    "tag": {"notebooklm:read"},
+    "server_info": {"notebooklm:read"},
     # write
     "notebook_create": {"notebooklm:write"},
     "notebook_rename": {"notebooklm:write"},
@@ -91,6 +94,7 @@ DEFAULT_TOOL_SCOPES: dict[str, set[str]] = {
     "studio_revise": {"notebooklm:write"},
     "notebook_share_public": {"notebooklm:write"},
     "notebook_share_invite": {"notebooklm:write"},
+    "notebook_share_batch": {"notebooklm:write"},
     "pipeline": {"notebooklm:write"},
     "batch": {"notebooklm:write"},
     "save_auth_tokens": {"notebooklm:write"},
@@ -104,17 +108,20 @@ DEFAULT_TOOL_SCOPES: dict[str, set[str]] = {
 
 
 def configured_scopes() -> dict[str, set[str]]:
-    """Runtime tool→scope map (admin-editable), defaulting to DEFAULT_TOOL_SCOPES."""
+    """Runtime tool→scope map: DEFAULT_TOOL_SCOPES merged with config.json
+    `tool_scopes` overrides — hot-patch the catalog without a redeploy when
+    upstream ships new tools."""
+    merged = {k: set(v) for k, v in DEFAULT_TOOL_SCOPES.items()}
     try:
         from .config import load_config
 
         custom = load_config().get("tool_scopes")
         if isinstance(custom, dict):
-            return {k: {s.strip() for s in str(v).split(",") if s.strip()}
-                    for k, v in custom.items()}
+            for k, v in custom.items():
+                merged[k] = {s.strip() for s in str(v).split(",") if s.strip()}
     except Exception:
         pass
-    return DEFAULT_TOOL_SCOPES
+    return merged
 
 
 def max_scopes() -> set[str]:
