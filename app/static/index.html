@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>lnc-notebooklm</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark">◆</span> lnc-notebooklm <span class="ver" id="ver"></span></div>
+  <nav class="topnav">
+    <a href="#status">status</a>
+    <a href="#credentials">credentials</a>
+    <a href="#inbox">inbox</a>
+    <a href="#settings">settings</a>
+  </nav>
+  <div class="topright"><span id="health" class="pill"></span><button class="btn btn-ghost" id="signout">sign out</button></div>
+</header>
+<main>
+  <section class="page" id="status">
+    <div class="card">
+      <div class="card-header"><h2>Service status</h2>
+        <div class="toolbar"><button class="btn btn-sm" id="refresh-status">refresh</button>
+        <button class="btn btn-sm" id="validate-live">validate live</button></div></div>
+      <div class="card-body" id="status-body"><div class="empty">loading…</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Usage</h2><button class="btn btn-sm" id="refresh-usage">refresh</button></div>
+      <div class="card-body" id="usage-body"><div class="empty">loading…</div></div>
+    </div>
+  </section>
+
+  <section class="page" id="credentials">
+    <div class="card">
+      <div class="card-header"><h2>Google credentials</h2></div>
+      <div class="card-body">
+        <p class="hint">Paste the full <code>Cookie:</code> header from a logged-in
+        <code>notebooklm.google.com</code> browser session (DevTools → Network →
+        any request → Request Headers). CSRF token and session ID are
+        auto-extracted by the upstream client on first call.</p>
+        <textarea id="cookie-in" rows="5" spellcheck="false" placeholder="SID=…; HSID=…; SSID=…; APISID=…; SAPISID=…; …"></textarea>
+        <div class="toolbar">
+          <button class="btn btn-primary" id="save-cookies">save + validate</button>
+          <button class="btn" id="refresh-cookies">rotate cookies (http-only)</button>
+        </div>
+        <div class="alert" id="cred-result" hidden></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" id="inbox">
+    <div class="card">
+      <div class="card-header"><h2>Inbox files</h2>
+        <div class="toolbar"><label class="btn btn-sm">upload<input type="file" id="file-in" hidden></label>
+        <button class="btn btn-sm" id="refresh-files">refresh</button></div></div>
+      <div class="card-body">
+        <p class="hint">Files land in the container inbox. Pass <code>path</code> to
+        the MCP tool <code>source_add(source_type="file", file_path=…)</code>.</p>
+        <table class="data-table" id="files-table"><thead>
+          <tr><th>name</th><th>size</th><th>container path</th><th></th></tr>
+        </thead><tbody id="files-body"></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" id="settings">
+    <div class="card">
+      <div class="card-header"><h2>Runtime settings</h2></div>
+      <div class="card-body">
+        <label class="field"><span class="field-label">RPC overrides (JSON — hot-patch rotated batchexecute method IDs; empty = clear)</span>
+        <textarea id="rpc-overrides" rows="4" spellcheck="false" placeholder='{"RPC_LIST_NOTEBOOKS": "abc123"}'></textarea></label>
+        <div class="toolbar"><button class="btn" id="save-overrides">save</button>
+        <button class="btn btn-ghost" id="mint-key">mint api key</button></div>
+        <pre class="code-block" id="settings-body"></pre>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

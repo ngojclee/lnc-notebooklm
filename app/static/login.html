@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>lnc-notebooklm — Sign in</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="login-body">
+  <form class="login-panel" id="login-form" autocomplete="off">
+    <div class="login-head">
+      <div class="login-brand">
+        <span class="login-title">lnc-notebooklm</span>
+        <span class="login-sub">management sign-in</span>
+      </div>
+    </div>
+    <label class="field">
+      <span class="field-label">Management key</span>
+      <input id="key" type="password" autocomplete="current-password" required>
+    </label>
+    <button class="btn btn-primary" id="signin" type="submit" disabled>Sign in</button>
+    <div class="alert alert-danger" id="err" hidden></div>
+  </form>
+<script>
+const f=document.getElementById('login-form'),k=document.getElementById('key'),
+b=document.getElementById('signin'),e=document.getElementById('err');
+k.addEventListener('input',()=>b.disabled=!k.value.trim());
+f.addEventListener('submit',async ev=>{
+  ev.preventDefault();b.disabled=true;e.hidden=true;
+  try{
+    const r=await fetch('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:k.value})});
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.error||'login failed');
+    location='/admin';
+  }catch(x){e.textContent=x.message;e.hidden=false;b.disabled=false;k.value='';k.focus();}
+});
+k.focus();
+</script>
+</body>
+</html>

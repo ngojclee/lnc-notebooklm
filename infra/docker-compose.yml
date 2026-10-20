@@ -1,0 +1,25 @@
+# lnc-notebooklm — Portainer GitOps stack
+# Build context is repo root (infra/ is the stack file location).
+services:
+  lnc-notebooklm:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: ghcr.io/lengoc-me/lnc-notebooklm:latest
+    container_name: lnc-notebooklm
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8472}:8000"
+    volumes:
+      - lnc-notebooklm-data:/data
+    env_file: stack.env
+    environment:
+      DATA_DIR: /data
+      # upstream storage inside the volume
+      NOTEBOOKLM_MCP_CLI_PATH: /data/nlm
+      # no browser inside image — headless refresh can't launch Chrome;
+      # cookie re-drop via /admin is the recovery path
+      NOTEBOOKLM_DISABLE_HEADLESS_REFRESH: "1"
+
+volumes:
+  lnc-notebooklm-data:

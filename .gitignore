@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+data/
+tests/.tmp-data/
+.stack.env
+infra/stack.env
+.pytest_cache/
+.docs/tmp/

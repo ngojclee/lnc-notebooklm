@@ -1,0 +1,30 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pytest pytest-asyncio httpx
+      - run: python -m pytest tests/ -q
+
+  image:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t lnc-notebooklm:test .
+      - name: smoke — health + auth gate
+        run: |
+          docker run -d --name t -e MANAGEMENT_KEY=ci -e LNC_API_KEYS=ci-key -p 18000:8000 lnc-notebooklm:test
+          sleep 6
+          curl -sf http://127.0.0.1:18000/health
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18000/mcp)" = "401"
+          docker rm -f t
